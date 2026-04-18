@@ -22,11 +22,11 @@ import { RetailerLayout } from "@/features/retailer/layouts/RetailerLayout";
 import { RetailerDashboardPage } from "@/features/retailer/pages/RetailerDashboardPage";
 import { RetailerProductsListPage } from "@/features/retailer/pages/RetailerProductsListPage";
 import { RetailerOrdersPage } from "@/features/retailer/pages/RetailerOrdersPage";
-// import { RetailerSettingsPage } from "@/features/retailer/pages/RetailerPricingPage";
 import { RetailerOffersPage } from "@/features/retailer/pages/RetailerOffersPage";
 import { RetailerCategoriesPage } from "@/features/retailer/pages/RetailerCategoriesPage";
 import { RetailerEditPricingPage } from "@/features/retailer/pages/RetailerEditPricingPage";
 import { RetailerHelpPage } from "@/features/retailer/pages/RetailerHelpPage";
+import { RetailerSettingsPage } from "@/features/retailer/pages/RetailerSettingsPage";
 
 // --- Common Pages ---
 import { ComingSoonPage } from "@/features/common/pages/ComingSoonPage";
@@ -77,7 +77,7 @@ const router = createBrowserRouter([
           { path: "inventory", element: <RetailerInventoryPage /> },
           { path: "pricing", element: <RetailerEditPricingPage /> },
           { path: "help", element: <RetailerHelpPage /> },
-          // { path: "settings", element: <RetailerSettingsPage /> },
+          { path: "settings", element: <RetailerSettingsPage /> },
         ],
       },
 

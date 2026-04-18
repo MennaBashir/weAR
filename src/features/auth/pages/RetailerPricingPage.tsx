@@ -1,11 +1,10 @@
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-// استيراد صور الكروت (يجب إضافتها في مجلد assets/auth/pricing)
 import basicImg from "@/assets/auth/pricing/basic.webp";
 import standardImg from "@/assets/auth/pricing/standard.webp";
 import enterpriseImg from "@/assets/auth/pricing/enterprise.webp";
-import saasImg from "@/assets/auth/pricing/saas.webp"; // <-- ضفنا صورة الـ SaaS هنا
+import saasImg from "@/assets/auth/pricing/saas.webp";
 
 type BillingCycle = "Monthly" | "Yearly" | "SaaS";
 
