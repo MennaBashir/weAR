@@ -6,18 +6,17 @@ import {
 import { AuthLayout } from "@/components/layout/AuthLayout";
 import { AppLayout } from "@/components/layout/AppLayout";
 
-// --- Auth Pages ---
+import { RoleSelectionPage } from "@/features/common/pages/RoleSelectionPage";
+
 import RetailerLoginPage from "@/features/auth/pages/RetailerLoginPage";
 import RetailerSignupStep1Page from "@/features/auth/pages/RetailerSignupStep1Page";
 import RetailerSignupStep2Page from "@/features/auth/pages/RetailerSignupStep2Page";
 import RetailerPricingPage from "@/features/auth/pages/RetailerPricingPage";
-import RetailerPaymentPage from "@/features/auth/pages/RetailerPaymentPage"; // <-- تم إضافة استيراد صفحة الدفع
+import RetailerPaymentPage from "@/features/auth/pages/RetailerPaymentPage";
 
-// --- Guards ---
 import { RequireAuth } from "../guards/RequireAuth";
 import { RequireRole } from "../guards/RequireRole";
 
-// --- Retailer Dashboard Pages ---
 import { RetailerLayout } from "@/features/retailer/layouts/RetailerLayout";
 import { RetailerDashboardPage } from "@/features/retailer/pages/RetailerDashboardPage";
 import { RetailerProductsListPage } from "@/features/retailer/pages/RetailerProductsListPage";
@@ -27,33 +26,35 @@ import { RetailerCategoriesPage } from "@/features/retailer/pages/RetailerCatego
 import { RetailerEditPricingPage } from "@/features/retailer/pages/RetailerEditPricingPage";
 import { RetailerHelpPage } from "@/features/retailer/pages/RetailerHelpPage";
 import { RetailerSettingsPage } from "@/features/retailer/pages/RetailerSettingsPage";
-
-// --- Common Pages ---
-import { ComingSoonPage } from "@/features/common/pages/ComingSoonPage";
 import { RetailerInventoryPage } from "@/features/retailer/pages/RetailerInventoryPage";
 
+import { CustomerOnboardingPage } from "@/features/customer/pages/CustomerOnboardingPage";
+import { CustomerLoginPage } from "@/features/customer/pages/CustomerLoginPage";
+import { CustomerSignupPage } from "@/features/customer/pages/CustomerSignupPage";
+
+import { ComingSoonPage } from "@/features/common/pages/ComingSoonPage";
+
 const router = createBrowserRouter([
-  // ==========================================
-  // Public Routes (Authentication & Onboarding)
-  // ==========================================
+  {
+    path: "/",
+    element: <RoleSelectionPage />,
+  },
+  { path: "/customer/onboarding", element: <CustomerOnboardingPage /> },
   {
     element: <AuthLayout />,
     children: [
       { path: "/login", element: <Navigate to="/login/retailer" replace /> },
-      { path: "/login/retailer", element: <RetailerLoginPage /> },
 
+      { path: "/login/retailer", element: <RetailerLoginPage /> },
       { path: "/signup/retailer", element: <RetailerSignupStep1Page /> },
       { path: "/signup/retailer/step-2", element: <RetailerSignupStep2Page /> },
       { path: "/signup/retailer/pricing", element: <RetailerPricingPage /> },
-      { path: "/signup/retailer/payment", element: <RetailerPaymentPage /> }, // <-- تم إضافة مسار الدفع هنا وإزالة التكرار
+      { path: "/signup/retailer/payment", element: <RetailerPaymentPage /> },
 
-      { path: "/", element: <Navigate to="/login" replace /> },
+      { path: "/login/customer", element: <CustomerLoginPage /> },
+      { path: "/signup/customer", element: <CustomerSignupPage /> },
     ],
   },
-
-  // ==========================================
-  // Protected Routes (Dashboard)
-  // ==========================================
   {
     element: (
       <RequireAuth>
@@ -80,13 +81,22 @@ const router = createBrowserRouter([
           { path: "settings", element: <RetailerSettingsPage /> },
         ],
       },
-
-      { path: "/customer", element: <ComingSoonPage /> },
+      {
+        path: "/customer",
+        element: <Navigate to="/customer/dashboard" replace />,
+      },
+      {
+        path: "/customer/dashboard",
+        element: (
+          <RequireRole role="customer">
+            <ComingSoonPage />
+          </RequireRole>
+        ),
+      },
       { path: "/admin", element: <ComingSoonPage /> },
     ],
   },
-
-  { path: "*", element: <Navigate to="/login" replace /> },
+  { path: "*", element: <Navigate to="/" replace /> },
 ]);
 
 export const AppRouter = () => <RouterProvider router={router} />;

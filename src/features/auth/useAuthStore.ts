@@ -13,10 +13,10 @@ export interface RetailerData {
 export type AuthUser = {
   id: string;
   email: string;
-  name: string; // الاسم الأساسي لليوزر
-  avatar?: string; // لو رفعنا صورة بروفايل بعدين
+  name: string;
+  avatar?: string;
   role: UserRole;
-  retailerData?: RetailerData; // هتكون موجودة لو الـ role === 'retailer'
+  retailerData?: RetailerData;
 };
 
 type AuthState = {
@@ -24,7 +24,6 @@ type AuthState = {
   role: UserRole | null;
   isAuthenticated: boolean;
 
-  // prevents redirect flicker on refresh
   hasHydrated: boolean;
   setHasHydrated: (v: boolean) => void;
 
@@ -82,19 +81,17 @@ export const useAuthStore = create<AuthState>()(
   ),
 );
 
-// selectors (clean + avoids rerenders)
 export const selectIsAuthenticated = (s: AuthState) => s.isAuthenticated;
 export const selectRole = (s: AuthState) => s.role;
 export const selectUser = (s: AuthState) => s.user;
 export const selectHasHydrated = (s: AuthState) => s.hasHydrated;
 
-// centralized role -> home mapping
 export const getHomePathForRole = (role: UserRole): string => {
   switch (role) {
     case "retailer":
       return "/retailer";
     case "customer":
-      return "/customer";
+      return "/customer/dashboard";
     case "admin":
       return "/admin";
     default:
@@ -102,7 +99,6 @@ export const getHomePathForRole = (role: UserRole): string => {
   }
 };
 
-// helps redirect back safely (no cross-portal access)
 export const isRoleAllowedForPath = (
   role: UserRole,
   pathname: string,
@@ -112,11 +108,3 @@ export const isRoleAllowedForPath = (
   if (pathname.startsWith("/admin")) return role === "admin";
   return true;
 };
-
-/**
- * TODO(BE):
- * - When backend is ready, we'll likely store:
- *   - accessToken (and optionally refreshToken)
- *   - or rely on HttpOnly cookies (then no token stored here)
- * - login() will be called after an API request, using server user payload.
- */

@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   Trash2,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export function RetailerSettingsPage() {
   const [activeTab, setActiveTab] = useState<"profile" | "payment" | "account">(
@@ -332,6 +333,7 @@ function AccountSettings() {
   const [emailNotif, setEmailNotif] = useState(true);
   const [smsNotif, setSmsNotif] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <div className="flex flex-col gap-10">
@@ -349,7 +351,10 @@ function AccountSettings() {
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-3 w-full">
               <button
-                onClick={() => setIsModalOpen(false)}
+                onClick={() => {
+                  setIsModalOpen(false);
+                  navigate("/login/retailer");
+                }}
                 className="flex-1 rounded-[12px] bg-[#F06161] py-3.5 font-bold text-white hover:bg-red-700 transition-colors text-[14px]"
               >
                 Delete Account
