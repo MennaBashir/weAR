@@ -93,17 +93,17 @@ Protected by:
 - Guards
 - Folder structure
 
-### Phase 2 – Authentication System (current)
+### Phase 2 – Authentication System (done)
 - Login / Signup
 - Role persistence
 - Protected routes
 
-### Phase 3 – Retailer Core
+### Phase 3 – Retailer Core (done)
 - Inventory CRUD
 - Dashboard
 - Billing
 
-### Phase 4 – Customer Experience
+### Phase 4 – Customer Experience (current)
 - Store UI
 - Virtual Fitting Demo
 - AI Recommendation
