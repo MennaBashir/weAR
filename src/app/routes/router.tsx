@@ -34,6 +34,7 @@ import { CustomerLoginPage } from "@/features/customer/pages/CustomerLoginPage";
 import { CustomerSignupPage } from "@/features/customer/pages/CustomerSignupPage";
 import { CustomerLayout } from "@/features/customer/layouts/CustomerLayout";
 import { CustomerHomePage } from "@/features/customer/pages/CustomerHomePage";
+import { CustomerPlaceholderPage } from "@/features/customer/pages/CustomerPlaceholderPage";
 import { CUSTOMER_ROUTES } from "@/features/customer/routes/customerRoutes";
 
 import { ComingSoonPage } from "@/features/common/pages/ComingSoonPage";
@@ -97,6 +98,42 @@ const router = createBrowserRouter([
           { index: true, element: <Navigate to={CUSTOMER_ROUTES.home} replace /> },
           { path: "dashboard", element: <Navigate to={CUSTOMER_ROUTES.home} replace /> },
           { path: "home", element: <CustomerHomePage /> },
+          {
+            path: "shop",
+            element: (
+              <CustomerPlaceholderPage
+                title="Shop"
+                description="Product browsing will be implemented in a later customer catalog phase."
+              />
+            ),
+          },
+          {
+            path: "try-on",
+            element: (
+              <CustomerPlaceholderPage
+                title="Try On"
+                description="Avatar and virtual try-on flows will be implemented in a later phase."
+              />
+            ),
+          },
+          {
+            path: "favorites",
+            element: (
+              <CustomerPlaceholderPage
+                title="Favorites"
+                description="Saved products and outfit collections will be implemented later."
+              />
+            ),
+          },
+          {
+            path: "account",
+            element: (
+              <CustomerPlaceholderPage
+                title="Account"
+                description="Customer profile, orders, and preferences will be implemented later."
+              />
+            ),
+          },
         ],
       },
       { path: "/admin", element: <ComingSoonPage /> },
