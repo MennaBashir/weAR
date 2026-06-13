@@ -47,6 +47,8 @@ import { CustomerAddressesPage } from "@/features/customer/pages/CustomerAddress
 import { CustomerAvatarPage } from "@/features/customer/pages/CustomerAvatarPage";
 import { CustomerAvatarManualPage } from "@/features/customer/pages/CustomerAvatarManualPage";
 import { CustomerAvatarPhotoPage } from "@/features/customer/pages/CustomerAvatarPhotoPage";
+import { CustomerCartPage } from "@/features/customer/cart/pages/CustomerCartPage";
+import { CustomerCheckoutPage } from "@/features/customer/cart/pages/CustomerCheckoutPage";
 
 import { CUSTOMER_ROUTES } from "@/features/customer/routes/customerRoutes";
 
@@ -220,6 +222,14 @@ const router = createBrowserRouter([
           {
             path: "avatar/photo",
             element: <CustomerAvatarPhotoPage />,
+          },
+          {
+            path: "cart",
+            element: <CustomerCartPage />,
+          },
+          {
+            path: "checkout",
+            element: <CustomerCheckoutPage />,
           },
         ],
       },

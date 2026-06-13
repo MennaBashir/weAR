@@ -12,6 +12,8 @@ export const CUSTOMER_ROUTES = {
   avatarManual: "/customer/avatar/manual",
   avatarPhoto: "/customer/avatar/photo",
   productDetails: (productId: string) => `/customer/products/${productId}`,
+  cart: "/customer/cart",
+  checkout: "/customer/checkout",
   login: "/login/customer",
   signup: "/signup/customer",
 } as const;

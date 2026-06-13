@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, NavLink, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   Heart,
   Home,
@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/features/auth/useAuthStore";
+import { useCartStore } from "@/features/customer/cart/useCartStore";
+import { computeItemCount } from "@/features/customer/cart/types/cart";
 import { CUSTOMER_ROUTES } from "@/features/customer/routes/customerRoutes";
 import { customerTheme } from "@/features/customer/styles/customerTheme";
 import { cn } from "@/lib/utils";
@@ -38,6 +40,9 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 
 export function CustomerLayout() {
   const logout = useAuthStore((state) => state.logout);
+  const navigate = useNavigate();
+  const cartItems = useCartStore((s) => s.items);
+  const cartCount = computeItemCount(cartItems);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -102,11 +107,20 @@ export function CustomerLayout() {
             <Button
               type="button"
               variant="outline"
-              className={cn("rounded-full border-[#E4DCD1] bg-white text-[#4D433D] hover:bg-[#F4EDE7] hover:text-[#A37E6B]", customerTheme.focusRing)}
-              aria-label="Open cart placeholder"
+              className={cn("relative rounded-full border-[#E4DCD1] bg-white text-[#4D433D] hover:bg-[#F4EDE7] hover:text-[#A37E6B]", customerTheme.focusRing)}
+              aria-label={cartCount > 0 ? `Open cart, ${cartCount} item${cartCount === 1 ? "" : "s"}` : "Open cart"}
+              onClick={() => navigate(CUSTOMER_ROUTES.cart)}
             >
               <ShoppingBag className="h-4 w-4" aria-hidden="true" />
               <span className="hidden sm:inline">Cart</span>
+              {cartCount > 0 && (
+                <span
+                  className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#A37E6B] text-[10px] font-bold text-white"
+                  aria-hidden="true"
+                >
+                  {cartCount > 99 ? "99+" : cartCount}
+                </span>
+              )}
             </Button>
             <Button
               type="button"
