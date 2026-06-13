@@ -30,7 +30,7 @@ describe("avatar measurement and photo helpers", () => {
     const imageFile = fileOfSize("image/png", 10);
     expect(() => buildAvatarImageExtractionFormData({ imageFile, heightCm: 0 })).toThrow(/Height/);
     const formData = buildAvatarImageExtractionFormData({ imageFile, heightCm: 177 });
-    expect(formData.get("imageFile")).toBe(imageFile);
-    expect(formData.get("heightCm")).toBe("177");
+    expect(formData.get("ImageFile")).toBe(imageFile);
+    expect(formData.get("HeightCm")).toBe("177");
   });
 });

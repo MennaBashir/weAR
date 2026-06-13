@@ -23,7 +23,7 @@ vi.mock("@/features/customer/try-on/components/TryOn3DViewer", () => ({
 }));
 
 vi.mock("@/features/customer/queries/profileAvatar.queries", () => ({
-  useCustomerAvatar: () => ({ isLoading: false, isError: false, data: { id: "a1", avatar3dModelUrl: null, measurements: { heightCm: 170 } } }),
+  useCustomerAvatar: () => ({ isLoading: false, isError: false, data: { id: "a1", avatar3dModelUrl: (globalThis as { activeAvatarModelUrl?: string | null }).activeAvatarModelUrl ?? null, measurements: { heightCm: 170 } } }),
 }));
 
 vi.mock("@/features/customer/queries/catalog.queries", () => ({
@@ -35,7 +35,8 @@ vi.mock("@/features/customer/try-on/hooks/tryOn.queries", () => ({
 }));
 
 const renderCompletedPage = async (modelUrl: unknown) => {
-  session = { id: "s1", productId: "p1", sessionType: "Overlay2D", resultImageUrl: "https://cdn.example.test/result.png", result3dModelUrl: modelUrl };
+  session = { id: "s1", productId: "p1", sessionType: 0, resultImageUrl: "https://cdn.example.test/result.png", result3dModelUrl: modelUrl };
+  (globalThis as { activeAvatarModelUrl?: string | null }).activeAvatarModelUrl = modelUrl as string | null;
   mutate.mockImplementation((_payload, opts) => opts.onSuccess(session));
   render(<MemoryRouter initialEntries={["/customer/try-on/p1"]}><Routes><Route path="/customer/try-on/:productId" element={<CustomerTryOnPage />} /></Routes></MemoryRouter>);
   fireEvent.click(screen.getByRole("button", { name: /enter room/i }));
@@ -63,6 +64,7 @@ beforeEach(() => {
   mockedProduct = { id: "p1", name: "Linen Jacket", price: 120, currency: "USD", imageUrl: "https://cdn.example.test/product.png", colors: ["Taupe"], sizes: ["M"] };
   useCartStore.setState({ items: [] });
   (globalThis as { failViewer?: boolean }).failViewer = false;
+  (globalThis as { activeAvatarModelUrl?: string | null }).activeAvatarModelUrl = null;
 });
 
 describe("CustomerTryOnPage progressive 3D result", () => {
@@ -119,7 +121,7 @@ describe("CustomerTryOnPage progressive 3D result", () => {
     await renderCompletedPage("https://cdn.example.test/result.glb");
 
     expect(mutate).toHaveBeenCalledWith(
-      { productId: "p1", sessionType: "Overlay2D" },
+      { productId: "p1", sessionType: 0, avatarId: "a1" },
       expect.any(Object),
     );
     expect(screen.getByText(/Linen Jacket · Size M · Taupe/i)).toBeInTheDocument();

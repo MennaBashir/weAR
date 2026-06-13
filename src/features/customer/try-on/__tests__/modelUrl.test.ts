@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getSafeTryOnResultModelUrl, toSafeModelUrl } from "@/features/customer/try-on/utils/modelUrl";
+import { getSafeActiveAvatarModelUrl, toSafeModelUrl } from "@/features/customer/try-on/utils/modelUrl";
 
 describe("try-on model URL safety", () => {
   it("rejects null, empty, malformed, javascript, data and blob URLs", () => {
@@ -17,9 +17,9 @@ describe("try-on model URL safety", () => {
     expect(toSafeModelUrl("http://cdn.example.test/result.glb")).toBe("http://cdn.example.test/result.glb");
   });
 
-  it("normalizes only documented try-on result model fields and not bare avatar models", () => {
-    expect(getSafeTryOnResultModelUrl({ id: "s1", productId: "p1", sessionType: "Overlay2D", result3dModelUrl: "https://cdn.example.test/dressed.glb", avatar3dModelUrl: "https://cdn.example.test/avatar.glb" })).toBe("https://cdn.example.test/dressed.glb");
-    expect(getSafeTryOnResultModelUrl({ id: "s2", productId: "p1", sessionType: "Overlay2D", resultImageUrl: "https://cdn.example.test/scene.glb" })).toBe("https://cdn.example.test/scene.glb");
-    expect(getSafeTryOnResultModelUrl({ id: "s3", productId: "p1", sessionType: "Overlay2D", resultImageUrl: "https://cdn.example.test/result.png", avatar3dModelUrl: "https://cdn.example.test/avatar.glb" })).toBeNull();
+  it("uses the active Avatar GLB as the neutral 3D source", () => {
+    expect(getSafeActiveAvatarModelUrl({ avatar3dModelUrl: "https://cdn.example.test/avatar.glb" })).toBe("https://cdn.example.test/avatar.glb");
+    expect(getSafeActiveAvatarModelUrl({ avatar3dModelUrl: "javascript:alert(1)" })).toBeNull();
+    expect(getSafeActiveAvatarModelUrl(null)).toBeNull();
   });
 });

@@ -85,6 +85,25 @@ describe("profile, addresses and avatar API adapters", () => {
     });
   });
 
+
+  it("creates manual avatars with root measurements, source, and UUID response", async () => {
+    mockedApiClient.post.mockResolvedValueOnce({ data: { data: "avatar-uuid-1" } });
+    await expect(avatarApi.createAvatar("c1", { heightCm: 170, chestCm: null })).resolves.toBe("avatar-uuid-1");
+    expect(mockedApiClient.post).toHaveBeenCalledWith("/api/customers/c1/avatar", { heightCm: 170, chestCm: null, source: "manual" });
+  });
+
+  it("updates measurements with avatarId, root fields, source, and accepts 204 empty responses", async () => {
+    mockedApiClient.patch.mockResolvedValueOnce({ status: 204, data: undefined });
+    await expect(avatarApi.updateMeasurements("c1", "av1", { heightCm: 171, waistCm: null })).resolves.toBeUndefined();
+    expect(mockedApiClient.patch).toHaveBeenCalledWith("/api/customers/c1/avatar/measurements", { avatarId: "av1", heightCm: 171, waistCm: null, source: "manual" });
+  });
+
+  it("deletes avatars with Axios config.data and accepts 204 empty responses", async () => {
+    mockedApiClient.delete.mockResolvedValueOnce({ status: 204, data: undefined });
+    await expect(avatarApi.deleteAvatar("c1", "av1")).resolves.toBeUndefined();
+    expect(mockedApiClient.delete).toHaveBeenCalledWith("/api/customers/c1/avatar", { data: { avatarId: "av1" } });
+  });
+
   it("normalizes paginated avatar history and degrades malformed measurementDataJson", async () => {
     mockedApiClient.get.mockResolvedValueOnce({
       data: {
@@ -110,7 +129,9 @@ describe("profile, addresses and avatar API adapters", () => {
       },
     });
 
-    await expect(avatarApi.getHistory("c1")).resolves.toEqual([
+    await expect(avatarApi.getHistory("c1")).resolves.toMatchObject({
+      pageNumber: undefined,
+      items: [
       expect.objectContaining({
         id: "hist-1",
         source: "image",
@@ -129,7 +150,8 @@ describe("profile, addresses and avatar API adapters", () => {
           shoulderCm: null,
         }),
       }),
-    ]);
+      ],
+    });
   });
 
   it("normalizes flat extraction responses and leaves multipart boundary generation to the browser", async () => {
@@ -159,5 +181,8 @@ describe("profile, addresses and avatar API adapters", () => {
       expect.any(FormData),
       { headers: { "Content-Type": undefined } },
     );
+    const sentFormData = mockedApiClient.post.mock.calls[0][1] as FormData;
+    expect(sentFormData.get("ImageFile")).toBe(file);
+    expect(sentFormData.get("HeightCm")).toBe("168");
   });
 });

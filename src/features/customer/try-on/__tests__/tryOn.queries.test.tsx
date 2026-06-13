@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuthStore } from "@/features/auth/useAuthStore";
 import { tryOnApi } from "@/features/customer/try-on/api/tryOn.api";
 import { useCreateTryOnSession } from "@/features/customer/try-on/hooks/tryOn.queries";
+import { TRY_ON_SESSION_TYPES } from "@/features/customer/try-on/types/tryOn";
 
 vi.mock("@/features/customer/try-on/api/tryOn.api", () => ({
   tryOnApi: { createSession: vi.fn(), listSessions: vi.fn(), getSession: vi.fn(), getProductSessions: vi.fn() },
@@ -23,11 +24,11 @@ describe("try-on hooks", () => {
     useAuthStore.setState({ user: { id: "customer-auth-1", fullName: "Customer", email: "c@example.com" }, role: "customer", isAuthenticated: true, accessToken: "token", refreshToken: "refresh" });
   });
 
-  it("creates sessions with the customer ID from auth state and Overlay2D payload only", async () => {
-    mockedTryOnApi.createSession.mockResolvedValue({ id: "session-1", productId: "product-1", sessionType: "Overlay2D" });
+  it("creates sessions with the customer ID from auth state and numeric payload only", async () => {
+    mockedTryOnApi.createSession.mockResolvedValue({ id: "session-1", productId: "product-1", sessionType: TRY_ON_SESSION_TYPES.overlay2D });
     const { result } = renderHook(() => useCreateTryOnSession(), { wrapper });
-    result.current.mutate({ productId: "product-1", sessionType: "Overlay2D" });
+    result.current.mutate({ productId: "product-1", sessionType: TRY_ON_SESSION_TYPES.overlay2D, avatarId: "avatar-1" });
     await waitFor(() => expect(mockedTryOnApi.createSession).toHaveBeenCalledTimes(1));
-    expect(mockedTryOnApi.createSession).toHaveBeenCalledWith("customer-auth-1", { productId: "product-1", sessionType: "Overlay2D" });
+    expect(mockedTryOnApi.createSession).toHaveBeenCalledWith("customer-auth-1", { productId: "product-1", sessionType: TRY_ON_SESSION_TYPES.overlay2D, avatarId: "avatar-1" });
   });
 });

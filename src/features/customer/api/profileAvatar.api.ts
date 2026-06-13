@@ -72,16 +72,26 @@ type FlatAvatarResponse = {
   measurements?: BodyMeasurements;
 };
 
-type AvatarHistoryResponse = {
-  items?: Array<{
-    id: string;
-    measurementDataJson?: string | null;
-    source?: string;
-    recordedAt?: string;
-    measurements?: BodyMeasurements;
-    createdAt?: string;
-  }>;
+export type PaginatedCustomerResponse<T> = {
+  items: T[];
+  pageNumber?: number;
+  pageSize?: number;
+  totalCount?: number;
+  totalPages?: number;
+  hasPreviousPage?: boolean;
+  hasNextPage?: boolean;
 };
+
+type AvatarHistoryItem = {
+  id: string;
+  measurementDataJson?: string | null;
+  source?: string;
+  recordedAt?: string;
+  measurements?: BodyMeasurements;
+  createdAt?: string;
+};
+
+type AvatarHistoryResponse = Partial<PaginatedCustomerResponse<AvatarHistoryItem>>;
 
 const mapFlatAvatarToCustomerAvatar = (
   avatar: FlatAvatarResponse,
@@ -153,15 +163,6 @@ const parseHistoryMeasurements = (
   }
 };
 
-const normalizeAvatar = (
-  avatar: CustomerAvatar,
-): CustomerAvatar => ({
-  ...avatar,
-  avatar3dModelUrl: avatar.avatar3dModelUrl ?? null,
-  measurements: normalizeNullableMeasurements(
-    avatar.measurements ?? {},
-  ),
-});
 
 export const avatarApi = {
   getAvatar: async (customerId: string, signal?: AbortSignal): Promise<CustomerAvatar | null> => {
@@ -181,13 +182,15 @@ export const avatarApi = {
       throw error;
     }
   },
-  createAvatar: async (customerId: string, measurements: BodyMeasurements) => {
-    const response = await apiClient.post(`/api/customers/${customerId}/avatar`, { measurements });
-    return normalizeAvatar(unwrapCustomerApiData<CustomerAvatar>(response.data));
+  createAvatar: async (customerId: string, measurements: BodyMeasurements): Promise<string> => {
+    const response = await apiClient.post(`/api/customers/${customerId}/avatar`, {
+      ...measurements,
+      source: "manual",
+    });
+    return unwrapCustomerApiData<string>(response.data);
   },
-  deleteAvatar: async (customerId: string) => {
-    const response = await apiClient.delete(`/api/customers/${customerId}/avatar`);
-    return unwrapCustomerApiData<{ message?: string }>(response.data);
+  deleteAvatar: async (customerId: string, avatarId: string): Promise<void> => {
+    await apiClient.delete(`/api/customers/${customerId}/avatar`, { data: { avatarId } });
   },
   getHistory: async (
     customerId: string,
@@ -206,7 +209,7 @@ export const avatarApi = {
       ? history
       : history.items ?? [];
 
-    return items.map((entry) => {
+    const normalizedItems = items.map((entry) => {
       if ("measurements" in entry && entry.measurements) {
         return {
           ...entry,
@@ -228,14 +231,34 @@ export const avatarApi = {
           new Date(0).toISOString(),
       } satisfies MeasurementHistoryEntry;
     });
+
+    if (Array.isArray(history)) return normalizedItems;
+
+    return {
+      items: normalizedItems,
+      pageNumber: history.pageNumber,
+      pageSize: history.pageSize,
+      totalCount: history.totalCount,
+      totalPages: history.totalPages,
+      hasPreviousPage: history.hasPreviousPage,
+      hasNextPage: history.hasNextPage,
+    };
   },
-  updateMeasurements: async (customerId: string, measurements: BodyMeasurements) => {
-    const response = await apiClient.patch(`/api/customers/${customerId}/avatar/measurements`, { measurements });
-    return normalizeAvatar(unwrapCustomerApiData<CustomerAvatar>(response.data));
+  updateMeasurements: async (customerId: string, avatarId: string, measurements: BodyMeasurements): Promise<void> => {
+    await apiClient.patch(`/api/customers/${customerId}/avatar/measurements`, {
+      avatarId,
+      ...measurements,
+      source: "manual",
+    });
   },
   getSizeRecommendation: async (customerId: string, productId: string, signal?: AbortSignal) => {
     const response = await apiClient.get(`/api/customers/${customerId}/avatar/size-recommendation/${productId}`, { signal });
-    return unwrapCustomerApiData<SizeRecommendation>(response.data);
+    const recommendation = unwrapCustomerApiData<SizeRecommendation & { confidenceScore?: number | null; justification?: string | null }>(response.data);
+    return {
+      ...recommendation,
+      confidence: recommendation.confidence ?? recommendation.confidenceScore ?? null,
+      reason: recommendation.reason ?? recommendation.justification ?? null,
+    };
   },
   extractFromImage: async (customerId: string, input: ExtractAvatarFromImageInput) => {
     const formData = buildAvatarImageExtractionFormData(input);

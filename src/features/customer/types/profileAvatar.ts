@@ -93,8 +93,10 @@ export interface MeasurementHistoryEntry {
 }
 
 export interface SizeRecommendation {
-  productId: string;
+  productId?: string;
   recommendedSize: string | null;
+  confidenceScore?: number | null;
+  justification?: string | null;
   confidence?: number | null;
   reason?: string | null;
 }
@@ -138,7 +140,7 @@ export const buildAvatarImageExtractionFormData = ({ imageFile, heightCm }: Extr
     throw new Error("Height in centimeters is required");
   }
   const formData = new FormData();
-  formData.append("imageFile", imageFile);
-  formData.append("heightCm", String(heightCm));
+  formData.append("ImageFile", imageFile);
+  formData.append("HeightCm", String(heightCm));
   return formData;
 };

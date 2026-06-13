@@ -92,13 +92,33 @@ export const useCustomerAvatar = () => {
 export const useCreateCustomerAvatar = () => {
   const { customerId, requireCustomerId } = useRequiredCustomerId();
   const queryClient = useQueryClient();
-  return useMutation({ mutationFn: (measurements: BodyMeasurements) => avatarApi.createAvatar(requireCustomerId(), measurements), onSuccess: () => queryClient.invalidateQueries({ queryKey: customerAvatarKeys.detail(customerId) }) });
+  return useMutation({
+    mutationFn: (measurements: BodyMeasurements) => avatarApi.createAvatar(requireCustomerId(), measurements),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: customerAvatarKeys.detail(customerId) }),
+        queryClient.invalidateQueries({ queryKey: customerAvatarKeys.history(customerId) }),
+      ]);
+      await queryClient.refetchQueries({ queryKey: customerAvatarKeys.detail(customerId) });
+    },
+  });
 };
 
 export const useDeleteCustomerAvatar = () => {
   const { customerId, requireCustomerId } = useRequiredCustomerId();
   const queryClient = useQueryClient();
-  return useMutation({ mutationFn: () => avatarApi.deleteAvatar(requireCustomerId()), onSuccess: () => queryClient.invalidateQueries({ queryKey: customerAvatarKeys.detail(customerId) }) });
+  return useMutation({
+    mutationFn: async () => {
+      const active = queryClient.getQueryData<{ id: string } | null>(customerAvatarKeys.detail(customerId));
+      if (!active?.id) throw new Error("Active avatar is required");
+      return avatarApi.deleteAvatar(requireCustomerId(), active.id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: customerAvatarKeys.detail(customerId) });
+      queryClient.invalidateQueries({ queryKey: customerAvatarKeys.history(customerId) });
+      queryClient.invalidateQueries({ queryKey: [...customerAvatarKeys.all, customerId, "size-recommendation"] });
+    },
+  });
 };
 
 export const useCustomerAvatarHistory = () => {
@@ -107,9 +127,22 @@ export const useCustomerAvatarHistory = () => {
 };
 
 export const useUpdateCustomerAvatarMeasurements = () => {
-  const { requireCustomerId } = useRequiredCustomerId();
+  const { customerId, requireCustomerId } = useRequiredCustomerId();
   const queryClient = useQueryClient();
-  return useMutation({ mutationFn: (measurements: BodyMeasurements) => avatarApi.updateMeasurements(requireCustomerId(), measurements), onSuccess: () => queryClient.invalidateQueries({ queryKey: customerAvatarKeys.all }) });
+  return useMutation({
+    mutationFn: async (measurements: BodyMeasurements) => {
+      const active = queryClient.getQueryData<{ id: string } | null>(customerAvatarKeys.detail(customerId));
+      if (!active?.id) throw new Error("Active avatar is required");
+      return avatarApi.updateMeasurements(requireCustomerId(), active.id, measurements);
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: customerAvatarKeys.detail(customerId) }),
+        queryClient.invalidateQueries({ queryKey: customerAvatarKeys.history(customerId) }),
+      ]);
+      await queryClient.refetchQueries({ queryKey: customerAvatarKeys.detail(customerId) });
+    },
+  });
 };
 
 export const useCustomerSizeRecommendation = (productId: string | null | undefined) => {
@@ -120,5 +153,11 @@ export const useCustomerSizeRecommendation = (productId: string | null | undefin
 export const useExtractCustomerAvatarFromImage = () => {
   const { customerId, requireCustomerId } = useRequiredCustomerId();
   const queryClient = useQueryClient();
-  return useMutation({ mutationFn: (input: ExtractAvatarFromImageInput) => avatarApi.extractFromImage(requireCustomerId(), input), onSuccess: () => queryClient.invalidateQueries({ queryKey: customerAvatarKeys.detail(customerId) }) });
+  return useMutation({
+    mutationFn: (input: ExtractAvatarFromImageInput) => avatarApi.extractFromImage(requireCustomerId(), input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: customerAvatarKeys.detail(customerId) });
+      queryClient.invalidateQueries({ queryKey: customerAvatarKeys.history(customerId) });
+    },
+  });
 };

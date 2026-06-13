@@ -73,7 +73,8 @@ function SessionCard({ session }: { session: TryOnSession }) {
 
 export function CustomerTryOnHistoryPage() {
   const sessions = useCustomerTryOnSessions();
-  const sortedSessions = [...(sessions.data ?? [])].sort((a, b) => new Date(b.createdAt ?? b.updatedAt ?? 0).getTime() - new Date(a.createdAt ?? a.updatedAt ?? 0).getTime());
+  const sessionItems = Array.isArray(sessions.data) ? sessions.data : sessions.data?.items ?? [];
+  const sortedSessions = [...sessionItems].sort((a, b) => new Date(b.createdAt ?? b.updatedAt ?? 0).getTime() - new Date(a.createdAt ?? a.updatedAt ?? 0).getTime());
 
   return (
     <section className="space-y-6">

@@ -1,16 +1,25 @@
 import type { CustomerProduct } from "@/features/customer/types/catalog";
 
-export type TryOnSessionType = "Overlay2D" | "Model3D" | "ARLiveView";
+export const TRY_ON_SESSION_TYPES = {
+  overlay2D: 0,
+  model3D: 1,
+  arLiveView: 2,
+} as const;
+
+export type TryOnSessionType = (typeof TRY_ON_SESSION_TYPES)[keyof typeof TRY_ON_SESSION_TYPES] | string;
 
 export interface CreateTryOnSessionPayload {
   productId: string;
-  sessionType: "Overlay2D";
+  sessionType: (typeof TRY_ON_SESSION_TYPES)["overlay2D"];
+  avatarId?: string | null;
 }
 
 export interface TryOnSession {
   id: string;
   customerId?: string;
   productId: string;
+  retailerId?: string | null;
+  avatarId?: string | null;
   sessionType: TryOnSessionType;
   status?: string | null;
   resultImageUrl?: string | null;
@@ -19,6 +28,8 @@ export interface TryOnSession {
   model3dUrl?: string | null;
   sizeRecommendation?: string | null;
   recommendedSize?: string | null;
+  confidenceScore?: number | null;
+  durationSeconds?: number | null;
   createdAt?: string | null;
   updatedAt?: string | null;
   product?: CustomerProduct | null;
