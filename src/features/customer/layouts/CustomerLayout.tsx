@@ -19,6 +19,7 @@ import { useCartStore } from "@/features/customer/cart/useCartStore";
 import { computeItemCount } from "@/features/customer/cart/types/cart";
 import { CUSTOMER_ROUTES } from "@/features/customer/routes/customerRoutes";
 import { customerTheme } from "@/features/customer/styles/customerTheme";
+import { customerAuthApi } from "@/features/customer/api/customerAuth.api";
 import { cn } from "@/lib/utils";
 
 const CUSTOMER_NAV_ITEMS = [
@@ -57,6 +58,17 @@ export function CustomerLayout() {
   }, [isMobileMenuOpen]);
 
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
+
+  const signOut = async () => {
+    try {
+      await customerAuthApi.logout();
+    } catch {
+      // Local cleanup is required even when backend revocation is unavailable.
+    } finally {
+      logout();
+      navigate(CUSTOMER_ROUTES.login, { replace: true });
+    }
+  };
 
   return (
     <div className={`min-h-screen ${customerTheme.page}`}>
@@ -126,7 +138,7 @@ export function CustomerLayout() {
               type="button"
               variant="ghost"
               className={cn("hidden rounded-full text-[#4D433D] hover:bg-[#F4EDE7] hover:text-[#A37E6B] xl:inline-flex", customerTheme.focusRing)}
-              onClick={logout}
+              onClick={signOut}
             >
               Sign out
             </Button>
@@ -168,7 +180,7 @@ export function CustomerLayout() {
                 variant="ghost"
                 className={cn("justify-start rounded-full text-[#4D433D] hover:bg-[#F4EDE7] hover:text-[#A37E6B]", customerTheme.focusRing)}
                 onClick={() => {
-                  logout();
+                  void signOut();
                   closeMobileMenu();
                 }}
               >

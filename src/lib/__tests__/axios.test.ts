@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getProfileFromRefreshData } from "@/lib/axios";
+import { getLoginPathForRole, getProfileFromRefreshData, getRefreshEndpointForRole } from "@/lib/axios";
 import type { RetailerProfile } from "@/features/auth/useAuthStore";
 
 const retailerProfile: RetailerProfile = {
@@ -60,5 +60,15 @@ describe("getProfileFromRefreshData", () => {
         customerProfile,
       ),
     ).toBe(customerProfile);
+  });
+});
+
+
+describe("role-aware refresh routing", () => {
+  it("routes customer refresh to the Customer endpoint without changing retailer refresh", () => {
+    expect(getRefreshEndpointForRole("customer")).toBe("/api/customer/auth/refresh");
+    expect(getRefreshEndpointForRole("retailer")).toBe("/api/auth/refresh-token");
+    expect(getLoginPathForRole("customer")).toBe("/login/customer");
+    expect(getLoginPathForRole("retailer")).toBe("/login/retailer");
   });
 });

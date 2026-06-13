@@ -40,6 +40,12 @@ export const getProfileFromRefreshData = (
   );
 };
 
+export const getRefreshEndpointForRole = (role: UserRole | null): string =>
+  role === "customer" ? "/api/customer/auth/refresh" : "/api/auth/refresh-token";
+
+export const getLoginPathForRole = (role: UserRole | null): string =>
+  role === "customer" ? "/login/customer" : "/login/retailer";
+
 export const apiClient = axios.create({
   baseURL:
     import.meta.env.VITE_API_BASE_URL || "https://vfr-backend.onrender.com",
@@ -54,7 +60,6 @@ function getTokenFromLocalStorage(): string | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw);
 
-    // Zustand persist may store state under `state` or directly
     return (
       parsed?.state?.accessToken ||
       parsed?.accessToken ||
@@ -71,15 +76,12 @@ apiClient.interceptors.request.use(
   (config) => {
     let token = useAuthStore.getState().accessToken;
 
-    // fallback to localStorage (in case persist hasn't hydrated yet)
     if (!token && typeof window !== "undefined") {
       token = getTokenFromLocalStorage();
     }
 
     if (token) {
       config.headers = config.headers || {};
-      // ensure header property exists and is set safely
-      // some Axios versions use AxiosHeaders; using bracket notation is robust
       (config.headers as Record<string, string>)["Authorization"] =
         `Bearer ${token}`;
     }
@@ -117,7 +119,10 @@ apiClient.interceptors.response.use(
       requestUrl.includes("/auth/register") ||
       requestUrl.includes("/auth/complete-profile") ||
       requestUrl.includes("/auth/forgot-password") ||
-      requestUrl.includes("/auth/reset-password");
+      requestUrl.includes("/auth/reset-password") ||
+      requestUrl.includes("/auth/refresh") ||
+      requestUrl.includes("/auth/refresh-token") ||
+      requestUrl.includes("/auth/logout");
 
     if (
       error.response?.status === 401 &&
@@ -135,9 +140,7 @@ apiClient.interceptors.response.use(
               `Bearer ${token}`;
             return apiClient(originalRequest);
           })
-          .catch((err) => {
-            return Promise.reject(err);
-          });
+          .catch((err) => Promise.reject(err));
       }
 
       originalRequest._retry = true;
@@ -149,7 +152,7 @@ apiClient.interceptors.response.use(
       if (refreshToken && accessToken) {
         try {
           const res = await axios.post(
-            `${apiClient.defaults.baseURL}/api/auth/refresh-token`,
+            `${apiClient.defaults.baseURL}${getRefreshEndpointForRole(role)}`,
             { accessToken, refreshToken },
           );
 
@@ -181,27 +184,23 @@ apiClient.interceptors.response.use(
               "Authorization"
             ] = `Bearer ${newAuthData.accessToken}`;
             return apiClient(originalRequest);
-          } else {
-            // Handle case where request succeeds but data indicates failure
-            processQueue(new Error("Refresh failed"));
-            logout();
-            window.location.href =
-              role === "customer" ? "/login/customer" : "/login/retailer";
-            return Promise.reject(error);
           }
+
+          processQueue(new Error("Refresh failed"));
+          logout();
+          window.location.href = getLoginPathForRole(role);
+          return Promise.reject(error);
         } catch (refreshError) {
           processQueue(refreshError, null);
           logout();
-          window.location.href =
-            role === "customer" ? "/login/customer" : "/login/retailer";
+          window.location.href = getLoginPathForRole(role);
           return Promise.reject(refreshError);
         } finally {
           isRefreshing = false;
         }
       } else {
         logout();
-        window.location.href =
-          role === "customer" ? "/login/customer" : "/login/retailer";
+        window.location.href = getLoginPathForRole(role);
         return Promise.reject(error);
       }
     }

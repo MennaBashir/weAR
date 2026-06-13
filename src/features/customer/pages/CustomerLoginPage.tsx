@@ -23,6 +23,7 @@ export function CustomerLoginPage() {
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const googleLoginConfigured = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
 
   const locationState = location.state as { message?: string } | null;
 
@@ -130,7 +131,7 @@ export function CustomerLoginPage() {
           </div>
           <div className="mt-2 text-right">
             <Link
-              to="/forgot-password"
+              to={CUSTOMER_ROUTES.forgotPassword}
               className="text-[14px] font-medium text-[#B6A092] transition-colors hover:text-[#A37E6B]"
             >
               Forget Password?
@@ -166,11 +167,22 @@ export function CustomerLoginPage() {
 
         <button
           type="button"
-          className="flex h-[58px] w-full items-center justify-center gap-4 rounded-[14px] border border-[#C9A390] bg-white text-[20px] font-medium text-[#B6A092] shadow-sm transition-colors hover:bg-gray-50"
+          disabled={!googleLoginConfigured}
+          onClick={() =>
+            setErrorMsg(
+              "Customer Google login is blocked until runtime config and the deployed response contract are confirmed.",
+            )
+          }
+          className="flex h-[58px] w-full items-center justify-center gap-4 rounded-[14px] border border-[#C9A390] bg-white text-[20px] font-medium text-[#B6A092] shadow-sm transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <img src={googleIcon} alt="Google" className="h-6 w-6" />
           Login with Google
         </button>
+        {!googleLoginConfigured && (
+          <p className="text-center text-[12px] text-[#B6A092]">
+            Customer Google login is pending confirmed runtime configuration and deployed contract.
+          </p>
+        )}
 
         <div className="mt-3 text-center text-[16px] text-[#C9A390]">
           Don&apos;t have an account?{" "}

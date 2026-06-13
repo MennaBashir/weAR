@@ -40,6 +40,12 @@ export interface CustomerLoginPayload {
   rememberMe: boolean;
 }
 
+export interface CustomerResetPasswordPayload {
+  email: string;
+  otpCode: string;
+  newPassword: string;
+}
+
 const CUSTOMER_AUTH_BASE = "/api/customer/auth";
 
 export const customerAuthApi = {
@@ -73,6 +79,26 @@ export const customerAuthApi = {
   login: async (payload: CustomerLoginPayload) => {
     const response = await apiClient.post<CustomerAuthResponse>(
       `${CUSTOMER_AUTH_BASE}/login`,
+      payload,
+    );
+    return response.data;
+  },
+
+  logout: async () => {
+    const response = await apiClient.post(`${CUSTOMER_AUTH_BASE}/logout`);
+    return response.data;
+  },
+
+  forgotPassword: async (email: string) => {
+    const response = await apiClient.post(`${CUSTOMER_AUTH_BASE}/forgot-password`, {
+      email,
+    });
+    return response.data;
+  },
+
+  resetPassword: async (payload: CustomerResetPasswordPayload) => {
+    const response = await apiClient.post(
+      `${CUSTOMER_AUTH_BASE}/reset-password`,
       payload,
     );
     return response.data;

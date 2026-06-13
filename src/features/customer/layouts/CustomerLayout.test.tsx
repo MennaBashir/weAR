@@ -1,10 +1,15 @@
-import { beforeEach, describe, expect, it } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import "@testing-library/jest-dom";
 import { CustomerLayout } from "@/features/customer/layouts/CustomerLayout";
 import { CUSTOMER_ROUTES } from "@/features/customer/routes/customerRoutes";
 import { useAuthStore } from "@/features/auth/useAuthStore";
+import { customerAuthApi } from "@/features/customer/api/customerAuth.api";
+
+vi.mock("@/features/customer/api/customerAuth.api", () => ({
+  customerAuthApi: { logout: vi.fn().mockResolvedValue({ success: true }) },
+}));
 
 const renderLayout = (initialEntry = CUSTOMER_ROUTES.home) =>
   render(
@@ -96,7 +101,7 @@ describe("CustomerLayout", () => {
     expect(screen.queryByRole("navigation", { name: "Mobile customer navigation" })).not.toBeInTheDocument();
   });
 
-  it("logs out from the mobile account action", () => {
+  it("logs out from the mobile account action", async () => {
     renderLayout();
 
     fireEvent.click(screen.getByRole("button", { name: "Open customer menu" }));
@@ -105,7 +110,8 @@ describe("CustomerLayout", () => {
     });
     fireEvent.click(within(mobileNav).getByRole("button", { name: "Sign out" }));
 
-    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    await waitFor(() => expect(useAuthStore.getState().isAuthenticated).toBe(false));
+    expect(customerAuthApi.logout).toHaveBeenCalledTimes(1);
     expect(useAuthStore.getState().role).toBeNull();
   });
 });
