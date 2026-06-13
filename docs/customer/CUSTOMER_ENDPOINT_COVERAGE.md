@@ -81,15 +81,31 @@ Toggle, list and check endpoints are **Verified UI used**. Saved Outfits uses ex
 
 ## AI Outfit Suggestions
 
-Suggestion generation and save endpoints are **Not integrated** — Command 19.
+| Endpoint | Status | Notes |
+|---|---|---|
+| `POST /api/customer/wardrobe/suggestions` | Not integrated | Command 19. Swagger-only. Request fields all optional/nullable; confirm whether empty body is valid. |
+| `POST /api/customer/wardrobe/suggestions/save` | Not integrated | Command 19. Swagger-only. `suggestionId` required; Favorites prerequisite unconfirmed. |
+| `POST /api/catalog/products/by-model-ids` | Adapter only | Adapter implemented. Use only when suggestion response contains `modelId` without `productId`. |
 
 ## Wardrobe Collections
 
-Collection and collection-item endpoints are **Not integrated** — Command 20.
+| Endpoint | Status | Notes |
+|---|---|---|
+| `GET /api/customers/{customerId}/wardrobe/collections` | Not integrated | Command 20. Swagger-only. Standard paginated envelope expected. |
+| `POST /api/customers/{customerId}/wardrobe/collections` | Not integrated | Command 20. Swagger-only. `name` required; returns UUID string. |
+| `PUT/PATCH /api/customers/{customerId}/wardrobe/collections/{collectionId}` | Not integrated | Command 20. Swagger-only. Method (PUT vs PATCH) and success status (200 vs 204) unconfirmed. |
+| `DELETE /api/customers/{customerId}/wardrobe/collections/{collectionId}` | Not integrated | Command 20. Swagger-only. 204 expected; cascade delete behavior unconfirmed. |
+| `GET /api/customers/{customerId}/wardrobe/collections/{collectionId}/items` | Not integrated | Command 20. Swagger-only. Paginated; exact item shape unconfirmed. |
+| `POST /api/customers/{customerId}/wardrobe/collections/{collectionId}/items` | Not integrated | Command 20. Swagger-only. `productId` required; duplicate behavior unconfirmed. |
+| `DELETE /api/customers/{customerId}/wardrobe/collections/{collectionId}/items/{itemId}` | Not integrated | Command 20. Swagger-only. 204 expected. |
 
 ## Fit Feedback
 
-Submit/order lookup/product statistics are **Deferred/blocked** until real order IDs exist — Command 21.
+| Endpoint | Status | Notes |
+|---|---|---|
+| `POST /api/customers/{customerId}/feedback` | Deferred/blocked | Command 21. Requires real completed `orderId` and `orderItemId`. Never use fake IDs. |
+| `GET /api/customers/{customerId}/feedback/orders/{orderId}` | Deferred/blocked | Command 21. Requires real `orderId`. |
+| `GET /api/catalog/products/{productId}/fit-statistics` | Not integrated | Command 21. Path unconfirmed. May be safe to implement without order data. |
 
 ## Backend-blocked commerce
 

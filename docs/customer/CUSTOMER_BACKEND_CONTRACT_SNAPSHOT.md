@@ -49,13 +49,37 @@ Confirmed defects:
 
 The frontend implements list/create/delete and does not expose fake detail/edit behavior.
 
+## AI Outfit Suggestions (Swagger-only, Command 19)
+
+- Generate: `POST /api/customer/wardrobe/suggestions` — body fields (occasion, stylePreferences, favoriteProductIds, modelIds, productIds) all optional/nullable; response contains suggestions array with products per suggestion.
+- Save: `POST /api/customer/wardrobe/suggestions/save` — body requires `suggestionId` (uuid), optional `name`/`styleCategory`, and `items[]` with `productId`/`slotType`/`displayOrder`; expected 201 with UUID string in `data`.
+- Model ID resolution: `POST /api/catalog/products/by-model-ids` — adapter already exists; call only when suggestion response products contain `modelId` without `productId`.
+- Unconfirmed: whether any request field is required; whether Favorites prerequisite applies to save.
+
+## Wardrobe Collections (Swagger-only, Command 20)
+
+- List: `GET /api/customers/{customerId}/wardrobe/collections` — paginated envelope (same shape as Outfits).
+- Create: `POST /api/customers/{customerId}/wardrobe/collections` — `name` required; returns UUID string in `data`.
+- Update: `PUT/PATCH /api/customers/{customerId}/wardrobe/collections/{id}` — exact method and success status (200/204) unconfirmed.
+- Delete: `DELETE /api/customers/{customerId}/wardrobe/collections/{id}` — 204 expected; cascade behavior unconfirmed.
+- List items: `GET /api/customers/{customerId}/wardrobe/collections/{id}/items` — paginated; exact item shape unconfirmed.
+- Add item: `POST /api/customers/{customerId}/wardrobe/collections/{id}/items` — `productId` required; duplicate behavior unconfirmed.
+- Remove item: `DELETE /api/customers/{customerId}/wardrobe/collections/{id}/items/{itemId}` — 204 expected.
+
+## Fit Feedback (Swagger-only, Command 21 — blocked)
+
+- Submit: `POST /api/customers/{customerId}/feedback` — requires real `orderId`, `orderItemId`, `productId`, `fitRating` enum and `overallRating` integer; never use fake IDs.
+- By order: `GET /api/customers/{customerId}/feedback/orders/{orderId}` — requires real `orderId`.
+- Statistics: `GET /api/catalog/products/{productId}/fit-statistics` — exact path unconfirmed; read-only, may not require order data.
+- Hard blocker: Customer order history API not integrated; no real order IDs available.
+
 ## New Swagger areas
 
-- AI Outfit Suggestions
-- Save suggestion
-- Wardrobe Collections and collection items
-- Fit Feedback and product fit statistics
-- Catalog product resolution by model IDs
+- AI Outfit Suggestions — see section above
+- Save suggestion — see section above
+- Wardrobe Collections and collection items — see section above
+- Fit Feedback and product fit statistics — see section above
+- Catalog product resolution by model IDs — see section above
 
 ## Known guide/Swagger conflicts
 

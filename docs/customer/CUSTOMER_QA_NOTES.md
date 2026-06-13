@@ -90,6 +90,37 @@ Current limitations:
 - Favorites queries are invalidated when favorite toggle is performed from within the outfits flow.
 - All 42 new outfit tests pass (8 API adapter, 16 query hook, 18 page UI).
 
+## Wardrobe Contract Audit (2026-06-13)
+
+This is a Swagger-only audit. The CONNECT tunnel to `https://vfr-backend.onrender.com` returns `403 Forbidden` from this execution environment; no deployed endpoints were reachable.
+
+### Endpoints audited (Swagger-only)
+
+- `POST /api/customer/wardrobe/suggestions` — AI suggestion generation
+- `POST /api/customer/wardrobe/suggestions/save` — save AI suggestion as outfit
+- `POST /api/catalog/products/by-model-ids` — resolve model IDs (adapter already exists)
+- `GET/POST /api/customers/{customerId}/wardrobe/collections` — list/create collections
+- `PUT/PATCH /api/customers/{customerId}/wardrobe/collections/{id}` — update collection
+- `DELETE /api/customers/{customerId}/wardrobe/collections/{id}` — delete collection
+- `GET/POST /api/customers/{customerId}/wardrobe/collections/{id}/items` — list/add items
+- `DELETE /api/customers/{customerId}/wardrobe/collections/{id}/items/{itemId}` — remove item
+- `POST /api/customers/{customerId}/feedback` — submit fit feedback (**blocked**)
+- `GET /api/customers/{customerId}/feedback/orders/{orderId}` — feedback by order (**blocked**)
+- `GET /api/catalog/products/{productId}/fit-statistics` — product fit stats
+
+### Key findings
+
+- All 13 endpoints are Swagger-documented but none could be verified against the deployed backend.
+- AI Outfit Suggestions: request body fields appear optional; `suggestionId` in save request and Favorites prerequisite are unconfirmed.
+- Collections: standard paginated envelope expected; collection update HTTP method (PUT vs PATCH) and success status (200 vs 204) are unconfirmed.
+- Fit Feedback: blocked hard on real completed order IDs (`orderId`, `orderItemId`). Customer order history API is not yet integrated.
+- `POST /api/catalog/products/by-model-ids` adapter already exists; use only when suggestions return `modelId` without `productId`.
+- See `CUSTOMER_WARDROBE_CONTRACT_AUDIT.md` for full per-endpoint schemas and blockers.
+
+### No source files changed
+
+No frontend source files, routes, hooks, adapters, pages, tests, or package files were modified. Only documentation files under `docs/customer/` were updated.
+
 ## Command 13 backend contract validation (2026-06-13)
 
 ### Environment and starting point
