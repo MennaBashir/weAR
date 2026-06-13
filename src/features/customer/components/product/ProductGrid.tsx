@@ -7,12 +7,18 @@ interface ProductGridProps {
   products?: CustomerProduct[];
   isLoading?: boolean;
   onToggleFavorite?: (productId: string) => void;
+  onToggleCompare?: (productId: string) => void;
+  compareSelectedIds?: string[];
+  isCompareFull?: boolean;
 }
 
 export function ProductGrid({
   products = [],
   isLoading = false,
   onToggleFavorite,
+  onToggleCompare,
+  compareSelectedIds = [],
+  isCompareFull = false,
 }: ProductGridProps) {
   if (isLoading) {
     return (
@@ -40,6 +46,9 @@ export function ProductGrid({
           key={product.id}
           product={product}
           onToggleFavorite={onToggleFavorite}
+          onToggleCompare={onToggleCompare}
+          isCompareSelected={compareSelectedIds.includes(product.id)}
+          isCompareFull={isCompareFull}
         />
       ))}
     </div>

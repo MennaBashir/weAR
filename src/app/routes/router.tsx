@@ -52,6 +52,7 @@ import { CustomerAvatarManualPage } from "@/features/customer/pages/CustomerAvat
 import { CustomerAvatarPhotoPage } from "@/features/customer/pages/CustomerAvatarPhotoPage";
 import { CustomerCartPage } from "@/features/customer/cart/pages/CustomerCartPage";
 import { CustomerCheckoutPage } from "@/features/customer/cart/pages/CustomerCheckoutPage";
+import { CustomerComparePage } from "@/features/customer/pages/CustomerComparePage";
 import { CustomerAboutPage } from "@/features/customer/pages/CustomerAboutPage";
 import { CustomerShippingReturnsPage } from "@/features/customer/pages/CustomerShippingReturnsPage";
 import { CustomerBlogPage } from "@/features/customer/pages/CustomerBlogPage";
@@ -243,6 +244,10 @@ const router = createBrowserRouter([
           {
             path: "checkout",
             element: <CustomerCheckoutPage />,
+          },
+          {
+            path: "compare",
+            element: <CustomerComparePage />,
           },
           {
             path: "about",

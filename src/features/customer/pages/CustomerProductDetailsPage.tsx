@@ -7,6 +7,7 @@ import { useCustomerProduct, useSimilarCustomerProducts } from "@/features/custo
 import { useToggleCustomerFavorite } from "@/features/customer/queries/favorites.queries";
 import { useComplementaryCustomerProducts, useCustomerSizeRecommendation } from "@/features/customer/queries/recommendations.queries";
 import { useCartStore } from "@/features/customer/cart/useCartStore";
+import { useCompareStore, COMPARE_MAX, COMPARE_MIN } from "@/features/customer/compare/useCompareStore";
 import { CUSTOMER_ROUTES } from "@/features/customer/routes/customerRoutes";
 import { customerTheme } from "@/features/customer/styles/customerTheme";
 import type { CustomerProduct, CustomerProductImage } from "@/features/customer/types/catalog";
@@ -51,6 +52,11 @@ export function CustomerProductDetailsPage() {
 
   const addToCart = useCartStore((s) => s.addItem);
   const addToCartCooldown = useRef(false);
+  const compareIds = useCompareStore((s) => s.productIds);
+  const addToCompare = useCompareStore((s) => s.add);
+  const removeFromCompare = useCompareStore((s) => s.remove);
+  const isCompareSelected = !!productId && compareIds.includes(productId);
+  const isCompareFull = compareIds.length >= COMPARE_MAX;
 
   const product = productQuery.data;
   const images = useMemo(() => product ? productImages(product) : [], [product]);
@@ -153,7 +159,40 @@ export function CustomerProductDetailsPage() {
             }} className={cn("rounded-full bg-[#A37E6B] text-white hover:bg-[#8F6E5D]", customerTheme.focusRing)} aria-label={`Add ${product.name} to cart`}><ShoppingBag className="mr-2 h-4 w-4" />Add to Cart</Button>
             <Button type="button" disabled={!variantsReady} onClick={() => navigate(`/customer/try-on/${product.id}`, { state: { productId: product.id, selectedSize, selectedColor } })} className={cn("rounded-full", customerTheme.focusRing)} variant="outline" aria-label={`Try on ${product.name}`}><Shirt className="mr-2 h-4 w-4" />Try On</Button>
             <Button type="button" variant="outline" className={cn("rounded-full", customerTheme.focusRing)} onClick={() => toggleFavorite.mutate(product.id)} disabled={toggleFavorite.isPending} aria-label={product.isFavorite ? `Remove ${product.name} from favorites` : `Add ${product.name} to favorites`}><Heart className={cn("mr-2 h-4 w-4", product.isFavorite && "fill-current")} />{product.isFavorite ? "Favorited" : "Favorite"}</Button>
-            <Button type="button" variant="outline" className={cn("rounded-full", customerTheme.focusRing)} onClick={() => updateLocalState({ compareMessage: "Product saved to the local comparison boundary. Add 1–3 more products when comparison is available." })} aria-label={`Add ${product.name} to comparison`}><Scale className="mr-2 h-4 w-4" />Compare</Button>
+            <Button
+              type="button"
+              variant="outline"
+              className={cn("rounded-full", isCompareSelected && "border-[#A37E6B] text-[#A37E6B]", customerTheme.focusRing)}
+              disabled={!isCompareSelected && isCompareFull}
+              aria-pressed={isCompareSelected}
+              onClick={() => {
+                if (isCompareSelected) {
+                  removeFromCompare(product.id);
+                  updateLocalState({ compareMessage: `${product.name} removed from comparison.` });
+                } else {
+                  addToCompare(product.id);
+                  const count = compareIds.length + 1;
+                  if (count >= COMPARE_MIN) {
+                    updateLocalState({ compareMessage: `${product.name} added. View comparison.` });
+                  } else {
+                    updateLocalState({ compareMessage: `${product.name} added. Select ${COMPARE_MIN - count} more to compare.` });
+                  }
+                }
+              }}
+              aria-label={isCompareSelected ? `Remove ${product.name} from comparison` : isCompareFull ? "Comparison is full" : `Add ${product.name} to comparison`}
+            >
+              <Scale className="mr-2 h-4 w-4" />
+              {isCompareSelected ? "Remove" : isCompareFull ? "Full" : "Compare"}
+            </Button>
+            {compareIds.length >= COMPARE_MIN && (
+              <Link
+                to={CUSTOMER_ROUTES.compare}
+                className={cn("inline-flex items-center justify-center rounded-full border border-[#A37E6B] px-4 py-2 text-sm font-medium text-[#A37E6B] hover:bg-[#F4EDE7]", customerTheme.focusRing)}
+              >
+                <Scale className="mr-2 h-4 w-4" />
+                View comparison ({compareIds.length})
+              </Link>
+            )}
           </div>
           {cartMessage && <p className="text-sm text-[#4D433D]" role="status">{cartMessage}</p>}
           {compareMessage && <p className="text-sm text-[#4D433D]" role="status">{compareMessage}</p>}
