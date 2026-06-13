@@ -14,6 +14,7 @@ export interface CustomerProduct {
   discountedPrice?: number | null;
   currency?: string | null;
   imageUrl?: string | null;
+  primaryImageUrl?: string | null;
   images?: CustomerProductImage[];
   categoryId?: string | null;
   categoryName?: string | null;

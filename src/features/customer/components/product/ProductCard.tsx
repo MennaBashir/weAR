@@ -14,7 +14,7 @@ interface ProductCardProps {
 }
 
 const getProductImage = (product: CustomerProduct): string | null =>
-  product.imageUrl ?? product.images?.find((image) => image.isPrimary)?.url ?? product.images?.[0]?.url ?? null;
+  product.primaryImageUrl ?? product.imageUrl ?? product.images?.find((image) => image.isPrimary)?.url ?? product.images?.[0]?.url ?? null;
 
 const getDiscountPercentage = (product: CustomerProduct): number | null => {
   if (
