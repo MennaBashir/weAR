@@ -1,5 +1,44 @@
 import axios from "axios";
-import { useAuthStore } from "@/features/auth/useAuthStore";
+import { useAuthStore, type RetailerProfile, type UserRole } from "@/features/auth/useAuthStore";
+
+
+type RefreshAuthData = {
+  accessToken: string;
+  refreshToken: string;
+  retailerProfile?: RetailerProfile | null;
+  customerProfile?: RetailerProfile | null;
+  profile?: RetailerProfile | null;
+  user?: RetailerProfile | null;
+};
+
+export const getProfileFromRefreshData = (
+  authData: RefreshAuthData,
+  role: UserRole | null,
+  fallbackProfile: RetailerProfile | null,
+): RetailerProfile | null => {
+  if (role === "customer") {
+    return (
+      authData.customerProfile ??
+      authData.profile ??
+      authData.user ??
+      fallbackProfile ??
+      null
+    );
+  }
+
+  if (role === "retailer") {
+    return authData.retailerProfile ?? fallbackProfile ?? null;
+  }
+
+  return (
+    authData.profile ??
+    authData.user ??
+    authData.retailerProfile ??
+    authData.customerProfile ??
+    fallbackProfile ??
+    null
+  );
+};
 
 export const apiClient = axios.create({
   baseURL:
@@ -104,7 +143,7 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
 
-      const { accessToken, refreshToken, logout, login, role } =
+      const { accessToken, refreshToken, logout, login, role, user } =
         useAuthStore.getState();
 
       if (refreshToken && accessToken) {
@@ -115,9 +154,19 @@ apiClient.interceptors.response.use(
           );
 
           if (res.data.success && res.data.data.isSuccess) {
-            const newAuthData = res.data.data.data;
+            const newAuthData = res.data.data.data as RefreshAuthData;
+            const refreshedProfile = getProfileFromRefreshData(
+              newAuthData,
+              role,
+              user,
+            );
+
+            if (!refreshedProfile) {
+              throw new Error("Refresh response did not include a profile");
+            }
+
             login(
-              newAuthData.retailerProfile,
+              refreshedProfile,
               {
                 accessToken: newAuthData.accessToken,
                 refreshToken: newAuthData.refreshToken,
