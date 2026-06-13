@@ -35,6 +35,11 @@ import { CustomerSignupPage } from "@/features/customer/pages/CustomerSignupPage
 import { CustomerLayout } from "@/features/customer/layouts/CustomerLayout";
 import { CustomerHomePage } from "@/features/customer/pages/CustomerHomePage";
 import { CustomerPlaceholderPage } from "@/features/customer/pages/CustomerPlaceholderPage";
+import { CustomerAccountPage } from "@/features/customer/pages/CustomerAccountPage";
+import { CustomerAddressesPage } from "@/features/customer/pages/CustomerAddressesPage";
+import { CustomerAvatarPage } from "@/features/customer/pages/CustomerAvatarPage";
+import { CustomerAvatarManualPage } from "@/features/customer/pages/CustomerAvatarManualPage";
+import { CustomerAvatarPhotoPage } from "@/features/customer/pages/CustomerAvatarPhotoPage";
 import { CUSTOMER_ROUTES } from "@/features/customer/routes/customerRoutes";
 
 import { ComingSoonPage } from "@/features/common/pages/ComingSoonPage";
@@ -125,15 +130,11 @@ const router = createBrowserRouter([
               />
             ),
           },
-          {
-            path: "account",
-            element: (
-              <CustomerPlaceholderPage
-                title="Account"
-                description="Customer profile, orders, and preferences will be implemented later."
-              />
-            ),
-          },
+          { path: "account", element: <CustomerAccountPage /> },
+          { path: "account/addresses", element: <CustomerAddressesPage /> },
+          { path: "avatar", element: <CustomerAvatarPage /> },
+          { path: "avatar/manual", element: <CustomerAvatarManualPage /> },
+          { path: "avatar/photo", element: <CustomerAvatarPhotoPage /> },
         ],
       },
       { path: "/admin", element: <ComingSoonPage /> },

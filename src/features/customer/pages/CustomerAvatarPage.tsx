@@ -1,0 +1,19 @@
+import { Link, useLocation } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AvatarMeasurementGrid, CustomerPageHeader, InlineState } from "@/features/customer/components/account/AccountAvatarShared";
+import { useCustomerAvatar, useCustomerAvatarHistory, useDeleteCustomerAvatar } from "@/features/customer/queries/profileAvatar.queries";
+import { CUSTOMER_ROUTES } from "@/features/customer/routes/customerRoutes";
+import { appendReturnToCustomerRoute, getSafeCustomerReturnRoute } from "@/features/customer/utils/customerReturnRoute";
+
+export function CustomerAvatarPage() {
+  const location = useLocation();
+  const returnTo = getSafeCustomerReturnRoute(new URLSearchParams(location.search).get("returnTo"), CUSTOMER_ROUTES.avatar);
+  const avatar = useCustomerAvatar();
+  const history = useCustomerAvatarHistory();
+  const deleteAvatar = useDeleteCustomerAvatar();
+  if (avatar.isLoading) return <InlineState title="Loading avatar" />;
+  if (avatar.isError) return <InlineState tone="error" title="Could not load avatar" />;
+  const active = avatar.data;
+  return <div><CustomerPageHeader title="Avatar" description="Review your avatar measurements, model status, and measurement history." actions={<div className="flex flex-wrap gap-2"><Button asChild><Link to={appendReturnToCustomerRoute(CUSTOMER_ROUTES.avatarManual, returnTo)}>Manual measurements</Link></Button><Button asChild variant="outline"><Link to={appendReturnToCustomerRoute(CUSTOMER_ROUTES.avatarPhoto, returnTo)}>Extract from photo</Link></Button></div>} />{!active ? <Card><CardHeader><CardTitle>No avatar yet</CardTitle><CardDescription>Create one manually or extract measurements from a full-body photo.</CardDescription></CardHeader><CardContent className="flex flex-wrap gap-2"><Button asChild><Link to={appendReturnToCustomerRoute(CUSTOMER_ROUTES.avatarManual, returnTo)}>Create manually</Link></Button><Button asChild variant="outline"><Link to={appendReturnToCustomerRoute(CUSTOMER_ROUTES.avatarPhoto, returnTo)}>Use photo</Link></Button></CardContent></Card> : <div className="grid gap-6"><Card><CardHeader><CardTitle>Active avatar summary</CardTitle><CardDescription>{active.avatar3dModelUrl ? "3D model is available." : "Measurements are saved. A 3D model is not available yet, and that is okay."}</CardDescription></CardHeader><CardContent className="space-y-4"><AvatarMeasurementGrid measurements={active.measurements} /><div className="flex flex-wrap gap-2"><Button asChild><Link to={appendReturnToCustomerRoute(CUSTOMER_ROUTES.avatarManual, returnTo)}>Edit measurements</Link></Button><Button asChild variant="outline"><Link to={appendReturnToCustomerRoute(CUSTOMER_ROUTES.avatarPhoto, returnTo)}>Replace via photo</Link></Button><Button type="button" variant="destructive" disabled={deleteAvatar.isPending} onClick={() => { if (window.confirm("Delete your avatar?")) deleteAvatar.mutate(); }}>Delete avatar</Button></div></CardContent></Card><Card><CardHeader><CardTitle>Measurement history</CardTitle></CardHeader><CardContent>{history.isLoading ? <InlineState title="Loading history" /> : null}{history.data?.length === 0 ? <InlineState title="No measurement history yet" /> : null}<div className="grid gap-3">{history.data?.map((entry) => <div key={entry.id} className="rounded-2xl border border-[#E4DCD1] p-4"><p className="font-medium text-[#2F2925]">{entry.source} · {new Date(entry.createdAt).toLocaleDateString()}</p><div className="mt-3"><AvatarMeasurementGrid measurements={entry.measurements} /></div></div>)}</div></CardContent></Card></div>}{deleteAvatar.isError ? <div className="mt-4"><InlineState tone="error" title="Could not delete avatar" /></div> : null}</div>;
+}
