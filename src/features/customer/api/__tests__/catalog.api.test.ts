@@ -20,7 +20,15 @@ describe("catalogApi", () => {
     });
 
     await expect(catalogApi.getProducts()).resolves.toEqual({
-      items: [{ id: "p1" }],
+      items: [
+        {
+          id: "p1",
+          categoryId: null,
+          categoryName: null,
+          images: undefined,
+          views: null,
+        },
+      ],
     });
   });
 
