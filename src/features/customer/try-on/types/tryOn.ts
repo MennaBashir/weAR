@@ -15,6 +15,8 @@ export interface TryOnSession {
   status?: string | null;
   resultImageUrl?: string | null;
   avatar3dModelUrl?: string | null;
+  result3dModelUrl?: string | null;
+  model3dUrl?: string | null;
   sizeRecommendation?: string | null;
   recommendedSize?: string | null;
   createdAt?: string | null;
