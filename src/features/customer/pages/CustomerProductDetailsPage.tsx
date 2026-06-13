@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Heart, ImageIcon, Ruler, Scale, Shirt, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,7 @@ import { ApiErrorState, EmptyState, PriceDisplay, ProductRail } from "@/features
 import { useCustomerProduct, useSimilarCustomerProducts } from "@/features/customer/queries/catalog.queries";
 import { useToggleCustomerFavorite } from "@/features/customer/queries/favorites.queries";
 import { useComplementaryCustomerProducts, useCustomerSizeRecommendation } from "@/features/customer/queries/recommendations.queries";
+import { useCartStore } from "@/features/customer/cart/useCartStore";
 import { CUSTOMER_ROUTES } from "@/features/customer/routes/customerRoutes";
 import { customerTheme } from "@/features/customer/styles/customerTheme";
 import type { CustomerProduct, CustomerProductImage } from "@/features/customer/types/catalog";
@@ -47,6 +48,9 @@ export function CustomerProductDetailsPage() {
     cartMessage: null,
     compareMessage: null,
   });
+
+  const addToCart = useCartStore((s) => s.addItem);
+  const addToCartCooldown = useRef(false);
 
   const product = productQuery.data;
   const images = useMemo(() => product ? productImages(product) : [], [product]);
@@ -130,7 +134,23 @@ export function CustomerProductDetailsPage() {
           {disabledReason && <p className="text-sm text-[#8F6E5D]" role="status">{disabledReason}</p>}
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <Button type="button" disabled={!variantsReady} onClick={() => updateLocalState({ cartMessage: `Saved locally: ${product.name}${selectedSize ? `, size ${selectedSize}` : ""}${selectedColor ? `, ${selectedColor}` : ""}.` })} className={cn("rounded-full bg-[#A37E6B] text-white hover:bg-[#8F6E5D]", customerTheme.focusRing)} aria-label={`Add ${product.name} to cart`}><ShoppingBag className="mr-2 h-4 w-4" />Add to Cart</Button>
+            <Button type="button" disabled={!variantsReady} onClick={() => {
+              if (addToCartCooldown.current) return;
+              addToCartCooldown.current = true;
+              addToCart({
+                productId: product.id,
+                productName: product.name,
+                productImage: images[0]?.url ?? product.imageUrl ?? null,
+                brand: product.brand ?? null,
+                unitPrice: product.price,
+                discountedPrice: product.discountedPrice ?? null,
+                selectedSize: selectedSize ?? null,
+                selectedColor: selectedColor ?? null,
+                productRoute: CUSTOMER_ROUTES.productDetails(product.id),
+              });
+              updateLocalState({ cartMessage: `Saved locally — ${product.name}${selectedSize ? `, size ${selectedSize}` : ""}${selectedColor ? `, ${selectedColor}` : ""} added to cart.` });
+              setTimeout(() => { addToCartCooldown.current = false; }, 1200);
+            }} className={cn("rounded-full bg-[#A37E6B] text-white hover:bg-[#8F6E5D]", customerTheme.focusRing)} aria-label={`Add ${product.name} to cart`}><ShoppingBag className="mr-2 h-4 w-4" />Add to Cart</Button>
             <Button type="button" disabled={!variantsReady} onClick={() => navigate(`/customer/try-on/${product.id}`, { state: { productId: product.id, selectedSize, selectedColor } })} className={cn("rounded-full", customerTheme.focusRing)} variant="outline" aria-label={`Try on ${product.name}`}><Shirt className="mr-2 h-4 w-4" />Try On</Button>
             <Button type="button" variant="outline" className={cn("rounded-full", customerTheme.focusRing)} onClick={() => toggleFavorite.mutate(product.id)} disabled={toggleFavorite.isPending} aria-label={product.isFavorite ? `Remove ${product.name} from favorites` : `Add ${product.name} to favorites`}><Heart className={cn("mr-2 h-4 w-4", product.isFavorite && "fill-current")} />{product.isFavorite ? "Favorited" : "Favorite"}</Button>
             <Button type="button" variant="outline" className={cn("rounded-full", customerTheme.focusRing)} onClick={() => updateLocalState({ compareMessage: "Product saved to the local comparison boundary. Add 1–3 more products when comparison is available." })} aria-label={`Add ${product.name} to comparison`}><Scale className="mr-2 h-4 w-4" />Compare</Button>
