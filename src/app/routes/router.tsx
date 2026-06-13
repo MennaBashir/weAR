@@ -34,6 +34,7 @@ import { CustomerLoginPage } from "@/features/customer/pages/CustomerLoginPage";
 import { CustomerSignupPage } from "@/features/customer/pages/CustomerSignupPage";
 import { CustomerLayout } from "@/features/customer/layouts/CustomerLayout";
 import { CustomerHomePage } from "@/features/customer/pages/CustomerHomePage";
+import { CustomerShopPage } from "@/features/customer/pages/CustomerShopPage";
 import { CustomerPlaceholderPage } from "@/features/customer/pages/CustomerPlaceholderPage";
 import { CUSTOMER_ROUTES } from "@/features/customer/routes/customerRoutes";
 
@@ -98,15 +99,7 @@ const router = createBrowserRouter([
           { index: true, element: <Navigate to={CUSTOMER_ROUTES.home} replace /> },
           { path: "dashboard", element: <Navigate to={CUSTOMER_ROUTES.home} replace /> },
           { path: "home", element: <CustomerHomePage /> },
-          {
-            path: "shop",
-            element: (
-              <CustomerPlaceholderPage
-                title="Shop"
-                description="Product browsing will be implemented in a later customer catalog phase."
-              />
-            ),
-          },
+          { path: "shop", element: <CustomerShopPage /> },
           {
             path: "try-on",
             element: (
