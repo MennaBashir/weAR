@@ -1,12 +1,17 @@
 import {
   createBrowserRouter,
-  RouterProvider,
   Navigate,
+  RouterProvider,
 } from "react-router-dom";
+
 import { AuthLayout } from "@/components/layout/AuthLayout";
 import { AppLayout } from "@/components/layout/AppLayout";
 
+import { RequireAuth } from "@/app/guards/RequireAuth";
+import { RequireRole } from "@/app/guards/RequireRole";
+
 import { RoleSelectionPage } from "@/features/common/pages/RoleSelectionPage";
+import { ComingSoonPage } from "@/features/common/pages/ComingSoonPage";
 
 import RetailerLoginPage from "@/features/auth/pages/RetailerLoginPage";
 import RetailerSignupStep1Page from "@/features/auth/pages/RetailerSignupStep1Page";
@@ -15,9 +20,6 @@ import RetailerPricingPage from "@/features/auth/pages/RetailerPricingPage";
 import RetailerPaymentPage from "@/features/auth/pages/RetailerPaymentPage";
 import ForgotPasswordPage from "@/features/auth/pages/ForgotPasswordPage";
 import ResetPasswordPage from "@/features/auth/pages/ResetPasswordPage";
-
-import { RequireAuth } from "../guards/RequireAuth";
-import { RequireRole } from "../guards/RequireRole";
 
 import { RetailerLayout } from "@/features/retailer/layouts/RetailerLayout";
 import { RetailerDashboardPage } from "@/features/retailer/pages/RetailerDashboardPage";
@@ -32,37 +34,69 @@ import { RetailerInventoryPage } from "@/features/retailer/pages/RetailerInvento
 
 import { CustomerLoginPage } from "@/features/customer/pages/CustomerLoginPage";
 import { CustomerSignupPage } from "@/features/customer/pages/CustomerSignupPage";
+
 import { CustomerLayout } from "@/features/customer/layouts/CustomerLayout";
 import { CustomerHomePage } from "@/features/customer/pages/CustomerHomePage";
-import { CustomerPlaceholderPage } from "@/features/customer/pages/CustomerPlaceholderPage";
-import { CustomerProductDetailsPage } from "@/features/customer/pages/CustomerProductDetailsPage";
 import { CustomerShopPage } from "@/features/customer/pages/CustomerShopPage";
-import { CUSTOMER_ROUTES } from "@/features/customer/routes/customerRoutes";
+import { CustomerProductDetailsPage } from "@/features/customer/pages/CustomerProductDetailsPage";
+import { CustomerPlaceholderPage } from "@/features/customer/pages/CustomerPlaceholderPage";
 
-import { ComingSoonPage } from "@/features/common/pages/ComingSoonPage";
+import { CUSTOMER_ROUTES } from "@/features/customer/routes/customerRoutes";
 
 const router = createBrowserRouter([
   {
     path: "/",
     element: <RoleSelectionPage />,
   },
+
   {
     element: <AuthLayout />,
     children: [
-      { path: "/login", element: <Navigate to="/login/retailer" replace /> },
+      {
+        path: "/login",
+        element: <Navigate to="/login/retailer" replace />,
+      },
 
-      { path: "/login/retailer", element: <RetailerLoginPage /> },
-      { path: "/signup/retailer", element: <RetailerSignupStep1Page /> },
-      { path: "/signup/retailer/step-2", element: <RetailerSignupStep2Page /> },
-      { path: "/signup/retailer/pricing", element: <RetailerPricingPage /> },
-      { path: "/signup/retailer/payment", element: <RetailerPaymentPage /> },
-      { path: "/forgot-password", element: <ForgotPasswordPage /> },
-      { path: "/reset-password", element: <ResetPasswordPage /> },
+      {
+        path: "/login/retailer",
+        element: <RetailerLoginPage />,
+      },
+      {
+        path: "/signup/retailer",
+        element: <RetailerSignupStep1Page />,
+      },
+      {
+        path: "/signup/retailer/step-2",
+        element: <RetailerSignupStep2Page />,
+      },
+      {
+        path: "/signup/retailer/pricing",
+        element: <RetailerPricingPage />,
+      },
+      {
+        path: "/signup/retailer/payment",
+        element: <RetailerPaymentPage />,
+      },
+      {
+        path: "/forgot-password",
+        element: <ForgotPasswordPage />,
+      },
+      {
+        path: "/reset-password",
+        element: <ResetPasswordPage />,
+      },
 
-      { path: CUSTOMER_ROUTES.login, element: <CustomerLoginPage /> },
-      { path: CUSTOMER_ROUTES.signup, element: <CustomerSignupPage /> },
+      {
+        path: CUSTOMER_ROUTES.login,
+        element: <CustomerLoginPage />,
+      },
+      {
+        path: CUSTOMER_ROUTES.signup,
+        element: <CustomerSignupPage />,
+      },
     ],
   },
+
   {
     element: (
       <RequireAuth>
@@ -78,17 +112,45 @@ const router = createBrowserRouter([
           </RequireRole>
         ),
         children: [
-          { index: true, element: <RetailerDashboardPage /> },
-          { path: "offers", element: <RetailerOffersPage /> },
-          { path: "categories", element: <RetailerCategoriesPage /> },
-          { path: "products", element: <RetailerProductsListPage /> },
-          { path: "orders", element: <RetailerOrdersPage /> },
-          { path: "inventory", element: <RetailerInventoryPage /> },
-          { path: "pricing", element: <RetailerEditPricingPage /> },
-          { path: "help", element: <RetailerHelpPage /> },
-          { path: "settings", element: <RetailerSettingsPage /> },
+          {
+            index: true,
+            element: <RetailerDashboardPage />,
+          },
+          {
+            path: "offers",
+            element: <RetailerOffersPage />,
+          },
+          {
+            path: "categories",
+            element: <RetailerCategoriesPage />,
+          },
+          {
+            path: "products",
+            element: <RetailerProductsListPage />,
+          },
+          {
+            path: "orders",
+            element: <RetailerOrdersPage />,
+          },
+          {
+            path: "inventory",
+            element: <RetailerInventoryPage />,
+          },
+          {
+            path: "pricing",
+            element: <RetailerEditPricingPage />,
+          },
+          {
+            path: "help",
+            element: <RetailerHelpPage />,
+          },
+          {
+            path: "settings",
+            element: <RetailerSettingsPage />,
+          },
         ],
       },
+
       {
         path: CUSTOMER_ROUTES.root,
         element: (
@@ -97,17 +159,32 @@ const router = createBrowserRouter([
           </RequireRole>
         ),
         children: [
-          { index: true, element: <Navigate to={CUSTOMER_ROUTES.home} replace /> },
-          { path: "dashboard", element: <Navigate to={CUSTOMER_ROUTES.home} replace /> },
-          { path: "home", element: <CustomerHomePage /> },
-          { path: "shop", element: <CustomerShopPage /> },
-          { path: "products/:productId", element: <CustomerProductDetailsPage /> },
+          {
+            index: true,
+            element: <Navigate to={CUSTOMER_ROUTES.home} replace />,
+          },
+          {
+            path: "dashboard",
+            element: <Navigate to={CUSTOMER_ROUTES.home} replace />,
+          },
+          {
+            path: "home",
+            element: <CustomerHomePage />,
+          },
+          {
+            path: "shop",
+            element: <CustomerShopPage />,
+          },
+          {
+            path: "products/:productId",
+            element: <CustomerProductDetailsPage />,
+          },
           {
             path: "try-on",
             element: (
               <CustomerPlaceholderPage
-                title="Try On"
-                description="Avatar and virtual try-on flows will be implemented in a later phase."
+                title="Virtual Try On"
+                description="The virtual fitting-room experience will be available here."
               />
             ),
           },
@@ -116,7 +193,7 @@ const router = createBrowserRouter([
             element: (
               <CustomerPlaceholderPage
                 title="Favorites"
-                description="Saved products and outfit collections will be implemented later."
+                description="Your saved products will appear here."
               />
             ),
           },
@@ -125,16 +202,24 @@ const router = createBrowserRouter([
             element: (
               <CustomerPlaceholderPage
                 title="Account"
-                description="Customer profile, orders, and preferences will be implemented later."
+                description="Manage your customer profile and preferences here."
               />
             ),
           },
         ],
       },
-      { path: "/admin", element: <ComingSoonPage /> },
+
+      {
+        path: "/admin",
+        element: <ComingSoonPage />,
+      },
     ],
   },
-  { path: "*", element: <Navigate to="/" replace /> },
+
+  {
+    path: "*",
+    element: <Navigate to="/" replace />,
+  },
 ]);
 
 export const AppRouter = () => <RouterProvider router={router} />;

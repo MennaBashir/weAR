@@ -1,7 +1,7 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 import { createMemoryRouter, Navigate, RouterProvider } from "react-router-dom";
 import { render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@testing-library/jest-dom";
 import { RequireRole } from "@/app/guards/RequireRole";
 import { CustomerLayout } from "@/features/customer/layouts/CustomerLayout";
@@ -45,11 +45,7 @@ const renderCustomerRouter = (initialEntry: string) => {
   );
 
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>,
-  );
+  render(<QueryClientProvider client={queryClient}><RouterProvider router={router} /></QueryClientProvider>);
   return router;
 };
 
@@ -78,6 +74,6 @@ describe("customer routes", () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe(CUSTOMER_ROUTES.home));
     expect(screen.getAllByText("weAR Customer")[0]).toBeInTheDocument();
-    expect(screen.getAllByText("Curated outfits that fit your body and your style.")[0]).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Discover fashion/i })).toBeInTheDocument();
   });
 });

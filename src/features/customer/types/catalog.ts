@@ -56,11 +56,18 @@ export interface CustomerCatalogParams {
   pageSize?: number;
   search?: string;
   categoryId?: string;
+  subcategoryId?: string;
   minPrice?: number;
   maxPrice?: number;
   sortBy?: string;
   sortDirection?: "asc" | "desc";
   offerId?: string;
+  colors?: string[];
+  sizes?: string[];
+  fabricMaterials?: string[];
+  bodyShapes?: string[];
+  fabricPatterns?: string[];
+  brands?: string[];
 }
 
 export interface CustomerPaginatedResult<T> {
