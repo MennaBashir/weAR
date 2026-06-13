@@ -1,5 +1,37 @@
 # Customer Frontend QA Notes
 
+## Updated Swagger and local deployed verification (2026-06-14)
+
+### Baseline
+
+- `npm ci`, lint, build and diff check passed.
+- `npm test`: 43 files, 238 tests passed.
+
+### Saved Outfits local deployed verification
+
+- list: HTTP 200 paginated
+- create without Favorites: HTTP 422 `INVALID_OUTFIT_ITEMS`
+- create after Favorites: HTTP 201 with UUID string in `data`
+- existing detail: HTTP 500 `INTERNAL_ERROR`
+- existing update: HTTP 500 `INTERNAL_ERROR`
+- delete: HTTP 204 empty body
+- list after delete: `totalCount: 0`
+- deleted ID detail: HTTP 404 `NOT_FOUND`
+
+### Updated Swagger conclusions
+
+- Manual Avatar create/update fields are root-level.
+- Avatar update and delete require `avatarId`; successful responses are 204.
+- Photo extraction uses `ImageFile` and `HeightCm`.
+- Avatar history is paginated and contains `measurementDataJson`.
+- Size recommendation uses `confidenceScore` and `justification`.
+- Try-on create uses auth-derived customerId in the URL and a body containing productId, numeric sessionType and optional avatarId.
+- Try-on sessions are paginated.
+- 2D result uses resultImageUrl.
+- Avatar GLB must not be described as garment-rendered without backend confirmation.
+
+The earlier Command 13 CONNECT-tunnel report remains historical evidence and is not deleted.
+
 ## Known limitation: Product-driven Try-on testing
 
 The Customer Try-on flow is implemented, but the complete manual journey from

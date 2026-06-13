@@ -2,70 +2,69 @@
 
 ## Purpose
 
-This file is the low-token continuation context for all Customer frontend work after the completed `customer/final-qa` branch.
-
-Agents should read this file first, then only the specific command section named in `CUSTOMER_CONTINUATION_COMMANDS.md`.
+Low-token context for Customer frontend continuation. Read this file first, then the named command and endpoint sections.
 
 ## Approved baseline
 
 - Repository: `abdelrhmanSobhy/weAR`
-- Required base branch: `customer/final-qa`
-- Approved baseline commit at planning time: `1bc790d405e0f0ce83468d918fedfd4e0e986bfb`
-- Final PR to `main`: PR #13, intentionally left open and not merged.
-- Existing verification:
+- Required base: latest `customer/final-qa`
+- Final PR to `main`: PR #13 remains intentionally open
+- Latest verified baseline before this documentation refresh:
   - `npm ci` passed
   - `npm run lint` passed
   - `npm run build` passed
-  - `npm test`: 34 files, 143 tests passed
+  - `npm test`: 43 files, 238 tests passed
   - `git diff --check` passed
 
 ## Completed Customer scope
 
-- Customer login and two-step signup
-- Customer role guards and nested storefront routing
-- Responsive Customer layout, header, navigation and footer
-- Home, Shop and Product Details
+- Login, two-step signup and protected routing
+- Role-aware refresh and backend logout attempt
+- Forgot/reset password
+- Responsive Customer layout
+- Home, Shop, Product Details and response normalization
 - Favorites
+- Product Comparison
 - Account and Addresses
-- Avatar overview, manual measurements, photo extraction and history
-- Flat Avatar/API response normalization
-- Try-on 2D state flow
-- Progressive lazy-loaded 3D viewer with 2D fallback
-- Local persisted Cart
-- Frontend-only Checkout boundary
-- Final route and regression audit
+- Avatar overview/manual/photo/history UI
+- 2D Try-on, lazy 3D Avatar view and Try-on History
+- Saved Outfits supported scope: list/create/delete/Favorites recovery
+- Local Cart and frontend-only Checkout
+- About, Shipping & Returns and Blog
+- Route/regression audit
+
+## Source precedence
+
+1. Verified deployed behavior in QA notes
+2. Current Swagger/OpenAPI
+3. Backend integration guide
+4. Older repository documentation
 
 ## Non-negotiable rules
 
 1. Do not work on `main`.
-2. Build every new branch from the latest approved `customer/final-qa` or its latest approved continuation branch.
-3. Do not invent backend endpoints, payload fields, order IDs, payment success, or server persistence.
-4. Customer identity must come from authenticated state, never from form input or URL parameters.
-5. Reuse `apiClient`; do not duplicate authorization injection.
-6. Preserve retailer/admin/auth behavior.
-7. Keep 2D Try-on as the mandatory fallback.
-8. Keep `@google/model-viewer` lazy-loaded.
+2. Use latest approved continuation base.
+3. Do not invent endpoints, fields, IDs, payment/order success or persistence.
+4. Customer identity comes from authenticated state.
+5. Reuse `apiClient`.
+6. Preserve Retailer/Admin behavior.
+7. Keep 2D Try-on fallback.
+8. Keep `@google/model-viewer` lazy.
 9. Do not run `npm audit fix` automatically.
-10. Do not claim manual verification for flows blocked by missing backend data.
+10. Record documented contract and runtime defect separately.
 
-## Known live-testing limitation
+## Current priority
 
-The real journey:
+**Command 18 — Avatar and Try-on Swagger contract alignment.**
 
-`Product Details -> Try On -> generated 2D/3D result -> Add to Cart`
+## Known backend defects and blockers
 
-has not been manually verified because reliable Customer catalog products and backend-compatible product IDs are not currently available.
-
-Opening `/customer/try-on` without a product and seeing `No product selected` is expected behavior.
-
-## Current technical debt
-
-- Customer auth refresh path may not match the documented Customer refresh endpoint.
-- Customer forgot/reset password, Google login and backend logout are not integrated.
-- Compare and products-by-model-IDs adapters exist but are not used by UI.
-- Try-on history adapters exist but are not used by a page.
-- Saved Outfits CRUD is not implemented.
-- Static About, Shipping/Returns and Blog pages are not implemented.
-- Orders/payment remain blocked by missing Customer backend contracts.
-- Main and 3D chunks still trigger Vite size warnings.
-- Existing dependency audit reports 17 vulnerabilities: 4 moderate, 12 high, 1 critical.
+- Existing Outfit detail GET returns 500.
+- Existing Outfit update PUT returns 500.
+- Deleted/missing Outfit detail correctly returns 404.
+- Full product-driven Try-on remains pending real end-to-end backend verification.
+- Google login remains configuration/contract gated.
+- Fit Feedback is blocked until real order IDs exist.
+- Persistent Customer cart, checkout submission, orders, payment and tracking are not confirmed.
+- Vite main and 3D chunks remain large.
+- Dependency audit reports 17 vulnerabilities: 4 moderate, 12 high, 1 critical.

@@ -71,3 +71,13 @@ Status is based on the current repository audit, supplied Figma PDF, Swagger and
 ```
 
 `/customer` and legacy `/customer/dashboard` should redirect to `/customer/home` after migration.
+
+## Continuation status refresh (2026-06-14)
+
+- Commands 12–17: complete.
+- Saved Outfits: list/create/delete complete; detail/update blocked by backend 500.
+- Next P0: Avatar and Try-on contract alignment.
+- AI Outfit Suggestions: planned Command 19.
+- Wardrobe Collections: planned Command 20.
+- Fit Feedback: blocked/planned Command 21.
+- Final release polish: Command 22.

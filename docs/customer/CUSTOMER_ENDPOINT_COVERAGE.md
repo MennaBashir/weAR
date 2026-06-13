@@ -1,116 +1,96 @@
 # Customer Endpoint Coverage
 
-This document tracks Customer backend endpoints against frontend implementation status.
-
 Status values:
 
-- **UI used**: called by an active Customer screen or workflow.
-- **Adapter only**: typed adapter exists, but no active UI consumes it.
-- **Not integrated**: documented endpoint has no Customer frontend integration.
-- **Blocked**: should not be implemented until the backend contract is confirmed.
+- **Verified UI used**
+- **UI used — contract alignment required**
+- **Adapter only**
+- **Complete supported scope**
+- **Not integrated**
+- **Backend defect**
+- **Deferred/blocked**
 
 ## Authentication
 
-| Endpoint | Status | Priority | Next action |
-|---|---|---:|---|
-| `POST /api/customer/auth/register` | UI used | Complete | Keep regression coverage. |
-| `POST /api/customer/auth/complete-profile` | UI used | Complete | Verify deployed payload/header contract when backend changes. |
-| `POST /api/customer/auth/login` | UI used | Complete | Keep response normalization tests. |
-| `POST /api/customer/auth/login/google` | Not integrated | P2 | Integrate only after client ID/config and deployed response contract are confirmed. |
-| `POST /api/customer/auth/refresh` | Not integrated / mismatch | **P0** | Audit against the current `/api/auth/refresh-token` interceptor call; fix with role-aware tests. |
-| `POST /api/customer/auth/logout` | Not integrated | **P0** | Revoke backend session before clearing local auth; degrade safely if request fails. |
-| `POST /api/customer/auth/forgot-password` | Not integrated | **P0** | Implement Customer-compatible OTP request flow. |
-| `POST /api/customer/auth/reset-password` | Not integrated | **P0** | Implement OTP/password reset flow and validation. |
+| Endpoint | Status | Notes |
+|---|---|---|
+| `POST /api/customer/auth/register` | Verified UI used | Signup. |
+| `POST /api/customer/auth/complete-profile` | Verified UI used | Two-step completion; re-audit exact Swagger fields during auth regression work. |
+| `POST /api/customer/auth/login` | Verified UI used | Customer login. |
+| `POST /api/customer/auth/refresh` | Verified UI used | Role-aware Customer refresh. |
+| `POST /api/customer/auth/logout` | Verified UI used | Backend attempt plus guaranteed local cleanup. |
+| `POST /api/customer/auth/forgot-password` | Verified UI used | OTP request. |
+| `POST /api/customer/auth/reset-password` | Verified UI used | OTP reset. |
+| `POST /api/customer/auth/login/google` | Deferred/blocked | Requires runtime client ID and deployed response confirmation. |
 
 ## Profile and Addresses
 
-| Endpoint | Status | Notes |
-|---|---|---|
-| `GET /api/customer/profile` | UI used | Account page. |
-| `PUT /api/customer/profile` | UI used | Profile update. |
-| `POST /api/customer/profile/change-password` | UI used | Account page. |
-| `POST /api/customer/profile/delete-account` | UI used | Confirmation flow. |
-| `GET /api/customer/addresses` | UI used | Addresses and Checkout. |
-| `POST /api/customer/addresses` | UI used | Create address. |
-| `GET /api/customer/addresses/{id}` | Adapter only | Current UI can edit from list data; retain for future detail/deep link. |
-| `PUT /api/customer/addresses/{id}` | UI used | Edit address. |
-| `DELETE /api/customer/addresses/{id}` | UI used | Delete address. |
-| `PATCH /api/customer/addresses/{id}/default` | UI used | Default selection. |
+All current profile/address list, create, update, delete and default-selection flows are **Verified UI used**. Address detail remains **Adapter only**.
 
 ## Catalog
 
-| Endpoint | Status | Priority | Next action |
-|---|---|---:|---|
-| `GET /api/catalog/products` | UI used but live data unverified | **P1** | Validate deployed filters, pagination and usable products. |
-| `GET /api/catalog/products/{productId}` | UI used but live data unverified | **P1** | Validate product shape, images, variants and IDs. |
-| `GET /api/catalog/products/{productId}/similar` | UI used | P1 | Verify response envelope with real product. |
-| `POST /api/catalog/products/compare` | Adapter only | P2 | Build local comparison selection and `/customer/compare`. |
-| `POST /api/catalog/products/by-model-ids` | Adapter only | P2/P3 | Use only in a confirmed AI/outfit flow. |
-| `GET /api/catalog/categories` | UI used | P1 | Verify counts and nested categories. |
-| `GET /api/catalog/offers` | UI used | P1 | Verify active offer shape. |
+| Endpoint | Status | Notes |
+|---|---|---|
+| `GET /api/catalog/products` | Verified UI used | Home/Shop; normalized envelopes and `primaryImageUrl`. |
+| `GET /api/catalog/products/{productId}` | Verified UI used | Product Details normalization fixed. |
+| `GET /api/catalog/products/{productId}/similar` | Verified UI used | Recommendation rail. |
+| `POST /api/catalog/products/compare` | Verified UI used | `/customer/compare`. |
+| `POST /api/catalog/products/by-model-ids` | Adapter only | Planned for AI suggestions when required. |
+| `GET /api/catalog/categories` | Verified UI used | Home/Shop. |
+| `GET /api/catalog/offers` | Verified UI used | Home. |
 
 ## Favorites
 
-| Endpoint | Status |
-|---|---|
-| `POST /api/customers/{customerId}/favorites/toggle` | UI used |
-| `GET /api/customers/{customerId}/favorites` | UI used |
-| `POST /api/customers/{customerId}/favorites/check` | UI used through hooks/check state |
+Toggle, list and check endpoints are **Verified UI used**. Saved Outfits uses explicit user-triggered favorite recovery.
 
 ## Avatar
 
-All documented Avatar endpoints are integrated:
+| Endpoint | Status | Next action |
+|---|---|---|
+| `GET /api/customers/{customerId}/avatar` | Verified UI used | Preserve 404 → no Avatar. |
+| `POST /api/customers/{customerId}/avatar` | UI used — contract alignment required | Root fields, source, UUID response. |
+| `PATCH /api/customers/{customerId}/avatar/measurements` | UI used — contract alignment required | Include avatarId; 204. |
+| `DELETE /api/customers/{customerId}/avatar` | UI used — contract alignment required | Body `{ avatarId }`; 204. |
+| `GET /api/customers/{customerId}/avatar/history` | UI used — contract alignment required | Paginated; parse measurementDataJson safely. |
+| `GET /api/customers/{customerId}/avatar/size-recommendation/{productId}` | UI used — contract alignment required | Map confidenceScore and justification. |
+| `POST /api/customers/{customerId}/avatar/extract-from-image` | Verified UI used | Multipart `ImageFile`/`HeightCm`; preserve Content-Type override and flat normalization. |
 
-- `GET /avatar`
-- `POST /avatar`
-- `DELETE /avatar`
-- `GET /avatar/history`
-- `PATCH /avatar/measurements`
-- `GET /avatar/size-recommendation/{productId}`
-- `POST /avatar/extract-from-image`
+## Saved Outfits
 
-Remaining work is live contract verification with real products for size recommendation and full Try-on.
-
-## Outfits and Recommendations
-
-| Endpoint | Status | Priority | Notes |
-|---|---|---:|---|
-| `GET /api/customers/{customerId}/outfits` | UI used | Complete | Verified: HTTP 200, paginated `ApiResponse<PagedResult<OutfitSummary>>`. |
-| `POST /api/customers/{customerId}/outfits` | UI used | Complete | Verified: HTTP 201, `response.data` is UUID string. 422 `INVALID_OUTFIT_ITEMS` when items are not Favorites. |
-| `GET /api/customers/{customerId}/outfits/{outfitId}` | Blocked — backend defect | — | Verified: existing detail returns HTTP 500 INTERNAL_ERROR. Not exposed in UI. |
-| `PUT /api/customers/{customerId}/outfits/{outfitId}` | Blocked — backend defect | — | Verified: existing update returns HTTP 500 INTERNAL_ERROR. Not exposed in UI. |
-| `DELETE /api/customers/{customerId}/outfits/{outfitId}` | UI used | Complete | Verified: HTTP 204 empty body. No JSON parsing attempted. |
-| `GET /api/customers/{customerId}/outfits/complementary` | Adapter only | P1 live verification | Documented per Command 13; UI consumed in Product Details complementary section. |
+| Endpoint | Status | Verified behavior |
+|---|---|---|
+| `GET /api/customers/{customerId}/outfits` | Complete supported scope | 200 paginated list. |
+| `POST /api/customers/{customerId}/outfits` | Complete supported scope | 201; `data` UUID string. |
+| create without Favorites | Complete supported scope | 422 `INVALID_OUTFIT_ITEMS`; explicit recovery action. |
+| `DELETE /api/customers/{customerId}/outfits/{outfitId}` | Complete supported scope | 204 empty body. |
+| missing/deleted detail | Complete supported scope | 404 `NOT_FOUND`. |
+| existing detail GET | Backend defect | 500 `INTERNAL_ERROR`; no detail UI. |
+| existing update PUT | Backend defect | 500 `INTERNAL_ERROR`; no edit UI. |
+| `GET /api/customers/{customerId}/outfits/complementary` | Verified UI used | Product Details; adapter tolerates direct arrays/envelopes. |
 
 ## Try-on
 
-| Endpoint / capability | Status | Priority |
-|---|---|---:|
-| `POST /try-on` with `Overlay2D` | UI used | P1 live verification |
-| `POST /try-on` with `Model3D` | Not used | P3; only if backend requires a separate 3D session |
-| `POST /try-on` with `ARLiveView` | Not used | P4 / out of current scope |
-| `GET /try-on/sessions` | Adapter only | P2 |
-| `GET /try-on/sessions/{sessionId}` | Adapter only | P2 |
-| `GET /products/{productId}/sessions` | Adapter only | P2 |
-| 3D model URL display | UI used when returned | Complete with fallback |
+| Capability | Status | Next action |
+|---|---|---|
+| create session | UI used — contract alignment required | Body: productId, numeric sessionType, optional avatarId; customerId in URL. |
+| 2D result | Verified UI used | `resultImageUrl` fallback. |
+| sessions/history | UI used — contract alignment required | Paginated response and documented fields. |
+| session detail/product sessions | Adapter only | Use only when stable UI needs them. |
+| 3D Avatar display | Verified UI used | Lazy viewer; garment semantics unconfirmed. |
+| AR live view | Deferred/blocked | Outside current scope unless explicitly approved. |
 
-## Backend-blocked areas
+## AI Outfit Suggestions
 
-No confirmed Customer endpoints currently exist for:
+Suggestion generation and save endpoints are **Not integrated** — Command 19.
 
-- Persistent server cart
-- Checkout submission
-- Order creation
-- Customer payment
-- Order tracking
-- Shipping/tax/coupon calculation
+## Wardrobe Collections
 
-Keep these frontend-only or explicitly blocked until Swagger/deployed backend confirms contracts.
+Collection and collection-item endpoints are **Not integrated** — Command 20.
 
-## Stage 12 auth audit note
+## Fit Feedback
 
-On 2026-06-13, attempted to fetch the deployed Swagger/OpenAPI documents from `https://vfr-backend.onrender.com` at `/swagger/v1/swagger.json`, `/swagger/index.html`, `/openapi.json`, `/api-docs`, and `/swagger.json`. Each request returned HTTP 403 from the CONNECT tunnel, so the deployed response schema could not be confirmed from this environment. Customer refresh, logout, forgot-password, and reset-password use the documented `CUSTOMER_API_REFERENCE.md` endpoints with conservative payloads. Customer Google login remains blocked in the UI unless/until both `VITE_GOOGLE_CLIENT_ID` and the deployed `/api/customer/auth/login/google` response contract are confirmed.
+Submit/order lookup/product statistics are **Deferred/blocked** until real order IDs exist — Command 21.
 
-## Command 13 deployed contract audit note
+## Backend-blocked commerce
 
-On 2026-06-13, Command 13 attempted to validate deployed Customer catalog, recommendations, avatar size-recommendation, and product-driven Try-on contracts against `https://vfr-backend.onrender.com`. The environment received CONNECT tunnel 403 responses before application responses for `GET /api/catalog/products?pageNumber=1&pageSize=5`, `GET /api/catalog/categories`, and `GET /api/catalog/offers`, so no Customer-visible product ID or deployed response shape could be confirmed. Product detail, similar products, complementary products, size recommendation, and Try-on creation remain blocked until the deployed backend is reachable from the validation environment and at least one real Customer-visible product/test Customer prerequisite is available. No endpoint status above was upgraded to verified, and `primaryImageUrl` support remains preserved in the frontend.
+Persistent cart, checkout submission, order creation, Customer payment, tracking and server shipping/tax/coupon calculation remain unconfirmed.

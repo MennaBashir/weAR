@@ -1,158 +1,94 @@
 # Customer Continuation Roadmap
 
-Base all continuation work on `customer/final-qa`.
+Base continuation work on the latest approved `customer/final-qa`.
 
 ## Priority model
 
-- **P0 — authentication/session correctness**
-- **P1 — validate critical shopping and Try-on paths with deployed backend**
-- **P2 — approved functional completion**
-- **P3 — optional/static/polish**
-- **P4 — deferred technical improvements**
+- **P0** — contract correctness for active critical flows
+- **P1** — high-value backend-supported Customer features
+- **P2** — approved functional completion
+- **P3** — release polish and conditionally blocked features
+- **P4** — deferred technical improvements
 
-## Stage 12 — Customer auth completion (P0)
+## ~~Stage 12 — Customer auth completion~~ ✅ Complete
 
-### Scope
+Role-aware refresh, backend logout attempt, forgot/reset password flows and tests are implemented. Google login remains configuration-gated.
 
-1. Audit the deployed Customer refresh endpoint.
-2. Replace or correctly route the current generic `/api/auth/refresh-token` behavior if the Customer contract requires `/api/customer/auth/refresh`.
-3. Integrate backend logout/revocation.
-4. Implement Customer forgot-password OTP request.
-5. Implement Customer reset-password OTP flow.
-6. Add Google login only if configuration and deployed contract are available.
+## ~~Stage 13 — Backend contract audit~~ ✅ Complete as audit
 
-### Exit criteria
+The execution environment was blocked from Render. Preserve the historical result, but use later local API tests and current Swagger as newer evidence.
 
-- Expired Customer token refresh is verified.
-- Failed refresh logs out to `/login/customer`.
-- Logout attempts backend revocation, then always clears local state.
-- Forgot/reset password works with validation and error handling.
-- Retailer refresh behavior is unchanged.
+## ~~Stage 14 — Try-on History~~ ✅ Complete
 
-## Stage 13 — Backend catalog contract and real-flow verification (P1)
+History UI is implemented. Pagination/field alignment is included in Stage 18.
 
-### Scope
+## ~~Stage 15 — Product Comparison~~ ✅ Complete
 
-1. Compare Swagger/deployed responses with current catalog types.
-2. Verify products list, pagination, categories and offers.
-3. Obtain at least one valid Customer product ID with images and variants.
-4. Verify Product Details.
-5. Verify size recommendation.
-6. Verify complementary and similar products.
-7. Execute the real Try-on flow with a valid product.
-8. Record request/response mismatches in QA notes.
+Local selection, compare route, API use and product controls are implemented.
+
+## ~~Stage 16 — Saved Outfits~~ ✅ Complete — supported scope
+
+Implemented list/create/delete and Favorites recovery. Existing detail and update remain backend defects and are intentionally not exposed as functional UI.
+
+## ~~Stage 17 — Static Pages~~ ✅ Complete
+
+About, Shipping & Returns and Blog are implemented.
+
+## Stage 18 — Avatar and Try-on Swagger contract alignment (P0)
+
+Align manual Avatar create/update/delete payloads, 204 handling, history pagination/JSON parsing, recommendation fields, numeric Try-on session type, optional avatarId, result/session normalization and 3D model semantics.
 
 ### Exit criteria
 
-- At least one product-driven end-to-end path is manually verified.
-- No production fixture is introduced to hide missing backend data.
-- Product filters and response normalization match deployed behavior.
+- Active Avatar/Try-on requests match Swagger.
+- Auth-derived identity only.
+- Existing 2D fallback and no-product state remain.
+- Regression tests cover each changed contract.
 
-## Stage 14 — Try-on history (P2)
+## Stage 19 — AI Outfit Suggestions and saving (P1/P2)
 
-### Scope
-
-- Add `/customer/try-on/history`.
-- Add session detail/reopen support only if the response contract is stable.
-- Reuse existing session hooks.
-- Handle empty, processing, completed and failed sessions.
-- Link products when IDs remain valid.
+Integrate Swagger-confirmed suggestion and save endpoints. Resolve model IDs through catalog only when required.
 
 ### Exit criteria
 
-- Existing adapters are consumed by UI.
-- No new endpoints are invented.
-- 2D/3D fallback remains unchanged.
+- No fabricated suggestion or save state.
+- Exact request/response contracts are tested.
+- Ambiguous contracts remain blocked.
 
-## Stage 15 — Product comparison (P2)
+## Stage 20 — Wardrobe Collections (P2)
 
-### Scope
-
-- Local selection of 2–4 products.
-- `/customer/compare`.
-- Use existing compare adapter.
-- Add/remove/clear comparison actions.
-- Responsive comparison table/cards.
-- Safe handling of unavailable fields/products.
+Implement collections and item membership operations from Swagger.
 
 ### Exit criteria
 
-- Compare endpoint is consumed by UI.
-- Selection persists only if useful; do not add backend storage.
-- Shop/Product Cards expose a consistent compare action.
+- Typed adapters, UI states, confirmations and cache invalidation.
+- Existing Favorites/Outfits logic is reused.
 
-## Stage 16 — Saved outfits (P2)
+## Stage 21 — Fit Feedback (P2/P3)
 
-### Scope
-
-- Add typed Outfits adapters, query keys and hooks.
-- Add `/customer/outfits`.
-- Implement list/create/detail/update/delete.
-- Reuse product cards and `by-model-ids` only if the backend outfit response requires model-ID resolution.
-- Integrate saving from completed Try-on only if payload contract is confirmed.
+Blocked until real order/order-item identifiers exist.
 
 ### Exit criteria
 
-- Full documented CRUD has tests.
-- Empty complementary response still hides silently.
-- No guessed payload fields.
+- No fake IDs.
+- Submit, order lookup and product statistics use verified contracts.
 
-## Stage 17 — Static and blocked UI completion (P3)
+## Stage 22 — Final visual/accessibility/release polish (P3)
 
-### Scope
+Audit every Customer route on desktop/mobile, keyboard/focus, dialogs and state consistency. Capture screenshots and run route smoke tests.
 
-- `/customer/about`
-- `/customer/shipping-returns`
-- `/customer/blog` using explicit fixtures/static content
-- Local payment-result states only if still required by design
-- Orders/tracking only as an explicit blocked/fixture experience, never as fake backend success
+## Stage 23 — Technical debt (P4)
 
-### Exit criteria
-
-- Static pages match design structure.
-- Fixture content is clearly isolated.
-- No fake order, payment or tracking claims.
-
-## Stage 18 — Visual, accessibility and release polish (P3)
-
-### Scope
-
-- Desktop/mobile comparison against approved PDF.
-- Keyboard and focus audit.
-- Loading, empty and error consistency.
-- Replace native confirmations with shared dialogs where practical.
-- Route smoke tests.
-- Remove dead placeholders only after reference search.
-- Update Feature Matrix and QA Notes to current status.
-
-### Exit criteria
-
-- Screenshots captured for all important routes.
-- No critical accessibility defects.
-- Docs reflect actual implementation.
-
-## Stage 19 — technical debt (P4)
-
-Perform separately from feature delivery:
-
-- Analyze main bundle and 3D chunk splitting.
-- Review npm vulnerabilities package-by-package.
-- Do not run automatic breaking upgrades.
-- Consider GLB caching only after stable real 3D sessions.
-- Decouple Customer auth profile types from retailer-shaped legacy types.
-- Add visual regression tooling if the project will continue long-term.
+Bundle analysis, route splitting, dependency vulnerabilities, dead code/adapters, duplicated tests, legacy type coupling, test-harness warning and visual-regression tooling.
 
 ## Recommended branch order
 
 ```text
 customer/final-qa
-  -> customer/auth-completion
-  -> customer/backend-contract-validation
-  -> customer/try-on-history
-  -> customer/product-comparison
-  -> customer/saved-outfits
-  -> customer/static-pages
+  -> customer/avatar-tryon-contract-alignment
+  -> customer/ai-outfit-suggestions
+  -> customer/wardrobe-collections
+  -> customer/fit-feedback
   -> customer/release-polish
+  -> customer/technical-debt
 ```
-
-Stages 14 and 15 may run in parallel only after Stage 13 is approved. Saved Outfits should follow deployed-contract validation.

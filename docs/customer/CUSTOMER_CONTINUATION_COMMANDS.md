@@ -1,204 +1,195 @@
 # Low-Token Customer Continuation Commands
 
-Use one command per agent conversation. Do not resend PDFs or Swagger. The agent must read:
+Use one command per agent conversation. The agent must read:
 
 1. `docs/customer/CUSTOMER_CONTINUATION_CONTEXT.md`
 2. The named stage in `CUSTOMER_CONTINUATION_ROADMAP.md`
-3. The relevant section in `CUSTOMER_ENDPOINT_COVERAGE.md`
-4. Only the existing source files needed for that stage
+3. The relevant rows in `CUSTOMER_ENDPOINT_COVERAGE.md`
+4. `docs/customer/CUSTOMER_BACKEND_CONTRACT_SNAPSHOT.md`
+5. Only the source files required for that command
 
-## Command 12 — auth/session completion
+## Source precedence
+
+1. Verified deployed behavior recorded in QA notes
+2. Current Swagger/OpenAPI
+3. Backend integration guide
+4. Older repository documentation
+
+When runtime behavior and Swagger differ, document both. Do not invent a reconciliation.
+
+## ~~Command 12 — Customer auth/session completion~~ ✅ Complete
+
+Implemented role-aware Customer refresh, backend logout attempt with guaranteed local cleanup, forgot/reset password flows, routes and tests. Google login remains blocked until runtime configuration and deployed response handling are confirmed.
+
+## ~~Command 13 — Catalog and backend contract audit~~ ✅ Complete as audit
+
+The audit command completed. The agent environment could not reach Render, so the real product-driven Try-on journey was not manually verified there. Later local API tests and the updated Swagger supersede parts of that audit.
+
+## ~~Command 14 — Try-on History~~ ✅ Complete
+
+Implemented `/customer/try-on/history`. Pagination and response-field alignment remain part of Command 18.
+
+## ~~Command 15 — Product Comparison~~ ✅ Complete
+
+Implemented local 2–4 product selection, `/customer/compare`, compare API usage and Shop/Product Details integration.
+
+## ~~Command 16 — Saved Outfits~~ ✅ Complete — supported backend scope
+
+Implemented `/customer/outfits`, paginated list, create, delete, explicit Favorites prerequisite recovery, UI states, authenticated identity and cache invalidation.
+
+Backend-blocked:
+
+- existing Outfit detail GET returns `500 INTERNAL_ERROR`
+- existing Outfit update PUT returns `500 INTERNAL_ERROR`
+- missing/deleted Outfit detail correctly returns `404 NOT_FOUND`
+
+No fake detail or edit UI was added.
+
+## ~~Command 17 — Static Pages~~ ✅ Complete
+
+Implemented `/customer/about`, `/customer/shipping-returns` and `/customer/blog`.
+
+## Command 18 — Avatar and Try-on Swagger contract alignment — P0
 
 ```text
 Work in abdelrhmanSobhy/weAR.
 
-Required base: customer/final-qa.
-Create or use branch customer/auth-completion.
-Do not work on main.
+Required base:
+latest customer/final-qa after the documentation refresh PR.
+
+Required branch:
+customer/avatar-tryon-contract-alignment
 
 Read:
 - docs/customer/CUSTOMER_CONTINUATION_CONTEXT.md
-- Stage 12 in CUSTOMER_CONTINUATION_ROADMAP.md
-- Authentication in CUSTOMER_ENDPOINT_COVERAGE.md
-- current customerAuth.api.ts, axios.ts, auth store, auth routes/pages/tests
+- Stage 18 in docs/customer/CUSTOMER_CONTINUATION_ROADMAP.md
+- Avatar and Try-on rows in docs/customer/CUSTOMER_ENDPOINT_COVERAGE.md
+- docs/customer/CUSTOMER_BACKEND_CONTRACT_SNAPSHOT.md
+- docs/customer/CUSTOMER_QA_NOTES.md
+- docs/customer/TRY_ON_FLOW.md
+- current profileAvatar and try-on adapters, hooks, pages and tests
 
-First audit deployed/Swagger contracts for:
-- POST /api/customer/auth/refresh
-- POST /api/customer/auth/logout
-- POST /api/customer/auth/forgot-password
-- POST /api/customer/auth/reset-password
-- POST /api/customer/auth/login/google
+Goal:
+Align existing Avatar and Try-on UI with current Swagger without redesigning stable flows.
 
-Implement in this order:
-1. Correct role-aware Customer refresh behavior without breaking Retailer refresh.
-2. Backend logout revocation with guaranteed local cleanup.
-3. Customer forgot-password OTP request.
-4. Customer reset-password OTP flow.
-5. Google login only if runtime config and deployed response contract are confirmed; otherwise document as blocked.
+Avatar:
 
-Do not invent fields or reuse Retailer-only payloads without tests.
-Add endpoint, adapter, route, form validation, redirect and refresh-concurrency tests.
-Run npm ci, lint, build, tests and git diff --check.
-Create a PR targeting customer/final-qa.
-Stop after the report.
+1. POST /api/customers/{customerId}/avatar
+   - root measurement fields
+   - documented source field
+   - no { measurements } wrapper
+   - response.data is Avatar UUID string
+   - invalidate/refetch active Avatar
+
+2. PATCH /api/customers/{customerId}/avatar/measurements
+   - include avatarId
+   - root measurement fields
+   - source when required
+   - HTTP 204, no JSON parsing
+
+3. DELETE /api/customers/{customerId}/avatar
+   - send { avatarId } using Axios config.data
+   - HTTP 204, no JSON parsing
+
+4. POST /api/customers/{customerId}/avatar/extract-from-image
+   - multipart names: ImageFile and HeightCm
+   - preserve request-specific "Content-Type": undefined
+   - do not manually set the boundary
+   - preserve flat-response and shoulderWidthCm normalization
+
+5. GET /api/customers/{customerId}/avatar/history
+   - paginated envelope
+   - preserve pagination metadata
+   - safely parse measurementDataJson
+   - malformed JSON must not crash UI
+
+6. Size recommendation:
+   normalize recommendedSize, confidenceScore and justification in the adapter.
+
+Try-on:
+
+1. Customer ID comes from auth and appears in URL only.
+2. POST /api/customers/{customerId}/try-on body:
+   {
+     productId: UUID,
+     sessionType: numeric enum,
+     avatarId?: UUID | null
+   }
+3. Do not invent customerId or retailerId in the body.
+4. Replace stale string session types where Swagger requires numeric enums.
+5. Normalize status, resultImageUrl, recommendedSize, confidenceScore and durationSeconds.
+6. Keep 2D as mandatory fallback.
+7. Normalize paginated session history and documented fields.
+8. Use active Avatar GLB unless a distinct Try-on model is explicitly returned.
+9. Do not claim the Avatar GLB contains the garment without backend confirmation.
+10. Preserve lazy model-viewer, URL validation and error boundary.
+
+Required tests:
+- manual root payload
+- create UUID response
+- update avatarId and 204
+- DELETE config.data and 204
+- multipart field names
+- history pagination and safe JSON parsing
+- size recommendation mapping
+- numeric session type and optional avatarId
+- no invented customerId/retailerId in body
+- result normalization
+- session pagination
+- active Avatar GLB source
+- 2D fallback and no-product state
+
+Run:
+npm ci
+npm run lint
+npm run build
+npm test
+git diff --check
+
+Create a PR to customer/final-qa and stop after the report.
 ```
 
-## Command 13 — deployed catalog and real Try-on contract validation
+## Command 19 — AI Outfit Suggestions and saving — P1/P2
 
 ```text
-Continue from the approved auth-completion branch, or branch customer/backend-contract-validation from the latest approved continuation head.
+Create customer/ai-outfit-suggestions from the latest approved continuation base.
 
-Read:
-- CUSTOMER_CONTINUATION_CONTEXT.md
-- Stage 13 in CUSTOMER_CONTINUATION_ROADMAP.md
-- Catalog, Avatar and Try-on rows in CUSTOMER_ENDPOINT_COVERAGE.md
-- CUSTOMER_QA_NOTES.md
+Use only Swagger-confirmed endpoints:
+- POST /api/customer/wardrobe/suggestions
+- POST /api/customer/wardrobe/suggestions/save
+- POST /api/catalog/products/by-model-ids only when model IDs require resolution
 
-This is contract-validation work, not a redesign.
-
-Audit deployed responses for:
-- products list/detail
-- categories/offers
-- similar/complementary products
-- size recommendation
-- Try-on session creation/result
-
-Use authenticated test data and at least one real product ID when available.
-Fix only confirmed response/payload mismatches in adapters/types.
-Do not add production fixtures to conceal missing backend data.
-Preserve the no-product Try-on state.
-
-Add regression tests from captured response shapes.
-Update CUSTOMER_QA_NOTES.md with:
-- manually verified flows
-- blocked flows
-- exact backend mismatches
-- valid test product prerequisites
-
-Run full checks.
-Create a PR targeting the latest approved continuation branch.
-Stop after the report.
+Derive Customer identity from auth. Reuse Favorites/catalog primitives. Implement loading, error, empty and success states. Never fabricate AI output or save success. If the schema is ambiguous, document the blocker instead of guessing. Add adapter, normalization, query and page tests. Run full checks and create a PR.
 ```
 
-## Command 14 — Try-on history
+## Command 20 — Wardrobe Collections — P2
 
 ```text
-Create branch customer/try-on-history from the latest approved continuation branch.
+Create customer/wardrobe-collections from the latest approved continuation base.
 
-Read:
-- CUSTOMER_CONTINUATION_CONTEXT.md
-- Stage 14 in CUSTOMER_CONTINUATION_ROADMAP.md
-- Try-on section in CUSTOMER_ENDPOINT_COVERAGE.md
-- existing tryOn.api.ts and tryOn.queries.ts
-
-Consume the existing endpoints:
-- GET /api/customers/{customerId}/try-on/sessions
-- GET /api/customers/{customerId}/try-on/sessions/{sessionId}
-- GET /api/customers/{customerId}/products/{productId}/sessions
-
-Implement /customer/try-on/history.
-Add session detail/reopen only if response fields are verified.
-Support loading, empty, processing, completed and failed states.
-Use authenticated customer ID only.
-Do not alter the stable 2D/3D creation flow.
-Add routes, navigation and focused tests.
-Run full checks and create a PR to the latest approved continuation branch.
+Implement only Swagger-confirmed list/create/rename/delete collection operations and list/add/remove collection items. Use authenticated Customer identity, typed adapters/query keys, loading/error/empty states, destructive confirmation and cache invalidation tests. Reuse product/Favorites/Outfits logic. Do not invent fields.
 ```
 
-## Command 15 — product comparison
+## Command 21 — Fit Feedback — P2/P3, blocked by real order data
 
 ```text
-Create branch customer/product-comparison from the latest approved continuation branch.
-
-Read:
-- CUSTOMER_CONTINUATION_CONTEXT.md
-- Stage 15 in CUSTOMER_CONTINUATION_ROADMAP.md
-- Catalog section in CUSTOMER_ENDPOINT_COVERAGE.md
-- existing catalog adapter/types/product primitives
-
-Implement local comparison selection for 2–4 products and /customer/compare.
-Consume the existing POST /api/catalog/products/compare adapter.
-Expose consistent add/remove compare controls on supported product cards/details.
-Do not create a comparison backend or persist unverified server state.
-Handle missing values and unavailable products.
-Add selection, limit, request, empty/error and responsive route tests.
-Run full checks and create a PR.
+Do not implement production UI until real Customer order or order-item IDs exist. Audit Swagger-confirmed feedback submission, order feedback lookup and product fit statistics. Record the completed-order prerequisite. Never use fake order IDs.
 ```
 
-## Command 16 — saved outfits
+## Command 22 — Final visual, accessibility and release polish — P3
 
 ```text
-Create branch customer/saved-outfits from the latest approved continuation branch after backend contract validation.
-
-Read:
-- CUSTOMER_CONTINUATION_CONTEXT.md
-- Stage 16 in CUSTOMER_CONTINUATION_ROADMAP.md
-- Outfits section in CUSTOMER_ENDPOINT_COVERAGE.md
-- current recommendations adapter and product primitives
-
-Implement typed adapters/hooks for documented Outfits CRUD:
-- list/create
-- detail/update/delete
-
-Implement /customer/outfits and any stable detail route.
-Use products-by-model-ids only when the verified outfit response requires it.
-Add save-from-Try-on only if the create payload is confirmed.
-Do not guess payload fields.
-Add adapter, cache invalidation, CRUD, empty/error and auth-ID tests.
-Run full checks and create a PR.
+Create customer/release-polish. Audit desktop/mobile, keyboard, focus, dialogs, loading, empty and error states across all Customer routes including Compare, Outfits and Try-on History. Capture screenshots where possible, fix proven defects only, keep stable flows, run route smoke tests and full checks, and update Feature Matrix, QA Notes and Endpoint Coverage.
 ```
 
-## Command 17 — static pages and blocked experiences
+## Command 23 — Technical debt and dependency review — P4
 
 ```text
-Create branch customer/static-pages from the latest approved continuation branch.
-
-Read:
-- CUSTOMER_CONTINUATION_CONTEXT.md
-- Stage 17 in CUSTOMER_CONTINUATION_ROADMAP.md
-- approved design reference sections
-
-Implement:
-- /customer/about
-- /customer/shipping-returns
-- /customer/blog with isolated fixtures/static content
-
-Add local payment-result states only if required by the approved design.
-Orders/tracking must remain explicitly blocked or fixture-only because no Customer backend contract is confirmed.
-Never fabricate order IDs, payment success, shipment events or API calls.
-Add route/accessibility tests and run full checks.
-```
-
-## Command 18 — final visual/accessibility polish
-
-```text
-Create branch customer/release-polish from the latest approved continuation branch.
-
-Read:
-- CUSTOMER_CONTINUATION_CONTEXT.md
-- Stage 18 in CUSTOMER_CONTINUATION_ROADMAP.md
-- CUSTOMER_DESIGN_REFERENCE.md
-- CUSTOMER_QA_NOTES.md
-
-Perform a route-by-route desktop/mobile visual and accessibility audit.
-Capture screenshots where tooling permits.
-Fix only proven consistency/accessibility defects.
-Standardize loading, empty, error, dialogs and focus behavior.
-Remove dead placeholders only after repository-wide reference checks.
-Run route smoke tests and full checks.
-Update:
-- CUSTOMER_FEATURE_MATRIX.md
-- CUSTOMER_QA_NOTES.md
-- CUSTOMER_ENDPOINT_COVERAGE.md
-
-Report completed, partial, blocked and deferred items.
-Create a PR to the latest approved continuation branch.
+Review bundle sizes, route-level splitting, npm vulnerabilities, stale files/adapters, duplicated tests, legacy Customer/Retailer type coupling, the "/login/customer" test warning and visual-regression tooling. Do not run npm audit fix automatically and do not mix feature delivery into this command.
 ```
 
 ## Compact continuation prompt
 
 ```text
-Continue the approved Customer continuation plan on the current branch.
-Read docs/customer/CUSTOMER_CONTINUATION_CONTEXT.md and only the stage/endpoint sections named in Command NN of CUSTOMER_CONTINUATION_COMMANDS.md.
-Review the previous approved commit and report, implement only this command, run all required checks, create the correctly based PR, and stop with changed-files/tests/blockers.
+Read CUSTOMER_CONTINUATION_CONTEXT.md, CUSTOMER_BACKEND_CONTRACT_SNAPSHOT.md and only the stage/endpoint sections named in Command NN. Implement only that command, preserve verified runtime behavior, run required checks, create the correctly based PR, and stop with changed files, tests and blockers.
 ```

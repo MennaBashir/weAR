@@ -94,3 +94,12 @@ For complementary products, an empty array means the section should be hidden si
 - Pass `AbortSignal` to cancellable reads where supported.
 - Never duplicate token injection already handled by `apiClient`.
 - Never build request URLs from untrusted customer IDs.
+
+## Updated Customer contract notes (2026-06-14)
+
+- Source precedence: deployed behavior → Swagger → integration guide → older docs.
+- Avatar manual payloads are root-level; update/delete require avatarId and return 204.
+- Avatar extraction multipart names are ImageFile and HeightCm.
+- Try-on create body is productId + numeric sessionType + optional avatarId; customerId is in the URL.
+- Saved Outfits list/create/delete are verified; existing detail/update currently return backend 500 errors.
+- AI Suggestions, Wardrobe Collections and Fit Feedback are documented but not yet integrated.
