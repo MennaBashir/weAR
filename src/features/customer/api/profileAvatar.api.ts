@@ -88,7 +88,48 @@ export const avatarApi = {
   },
   extractFromImage: async (customerId: string, input: ExtractAvatarFromImageInput) => {
     const formData = buildAvatarImageExtractionFormData(input);
-    const response = await apiClient.post(`/api/customers/${customerId}/avatar/extract-from-image`, formData);
-    return normalizeAvatar(unwrapCustomerApiData<CustomerAvatar>(response.data));
+
+    const response = await apiClient.post(
+      `/api/customers/${customerId}/avatar/extract-from-image`,
+      formData,
+      {
+        headers: {
+          "Content-Type": undefined,
+        },
+      },
+    );
+
+    const extracted = unwrapCustomerApiData<{
+      id: string;
+      heightCm?: number | null;
+      weightKg?: number | null;
+      chestCm?: number | null;
+      waistCm?: number | null;
+      hipsCm?: number | null;
+      shoulderWidthCm?: number | null;
+      shoulderCm?: number | null;
+      inseamCm?: number | null;
+      avatar3dModelUrl?: string | null;
+      lastMeasuredAt?: string;
+    }>(response.data);
+
+    return normalizeAvatar({
+      id: extracted.id,
+      customerId,
+      measurements: {
+        heightCm: extracted.heightCm ?? null,
+        weightKg: extracted.weightKg ?? null,
+        chestCm: extracted.chestCm ?? null,
+        waistCm: extracted.waistCm ?? null,
+        hipsCm: extracted.hipsCm ?? null,
+        shoulderCm:
+          extracted.shoulderCm ??
+          extracted.shoulderWidthCm ??
+          null,
+        inseamCm: extracted.inseamCm ?? null,
+      },
+      avatar3dModelUrl: extracted.avatar3dModelUrl ?? null,
+      updatedAt: extracted.lastMeasuredAt,
+    });
   },
 };
