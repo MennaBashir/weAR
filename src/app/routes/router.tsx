@@ -43,6 +43,7 @@ import { CustomerShopPage } from "@/features/customer/pages/CustomerShopPage";
 import { CustomerProductDetailsPage } from "@/features/customer/pages/CustomerProductDetailsPage";
 import { CustomerFavoritesPage } from "@/features/customer/pages/CustomerFavoritesPage";
 import { CustomerTryOnPage } from "@/features/customer/try-on/pages/CustomerTryOnPage";
+import { CustomerTryOnHistoryPage } from "@/features/customer/try-on/pages/CustomerTryOnHistoryPage";
 
 import { CustomerAccountPage } from "@/features/customer/pages/CustomerAccountPage";
 import { CustomerAddressesPage } from "@/features/customer/pages/CustomerAddressesPage";
@@ -202,6 +203,10 @@ const router = createBrowserRouter([
           {
             path: "try-on",
             element: <CustomerTryOnPage />,
+          },
+          {
+            path: "try-on/history",
+            element: <CustomerTryOnHistoryPage />,
           },
           {
             path: "try-on/:productId",

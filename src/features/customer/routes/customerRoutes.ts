@@ -4,6 +4,7 @@ export const CUSTOMER_ROUTES = {
   dashboard: "/customer/dashboard",
   shop: "/customer/shop",
   tryOn: "/customer/try-on",
+  tryOnHistory: "/customer/try-on/history",
   tryOnProduct: (productId: string) => `/customer/try-on/${productId}`,
   favorites: "/customer/favorites",
   account: "/customer/account",

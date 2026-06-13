@@ -36,6 +36,7 @@ const protectedCustomerPaths = [
   "/customer/avatar/manual",
   "/customer/avatar/photo",
   "/customer/try-on",
+  "/customer/try-on/history",
   "/customer/try-on/product-1",
   "/customer/cart",
   "/customer/checkout",

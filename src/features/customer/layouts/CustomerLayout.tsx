@@ -26,6 +26,7 @@ const CUSTOMER_NAV_ITEMS = [
   { label: "Home", to: CUSTOMER_ROUTES.home, icon: Home },
   { label: "Shop", to: CUSTOMER_ROUTES.shop, icon: Store },
   { label: "Try On", to: CUSTOMER_ROUTES.tryOn, icon: Shirt },
+  { label: "History", to: CUSTOMER_ROUTES.tryOnHistory, icon: Sparkles },
   { label: "Favorites", to: CUSTOMER_ROUTES.favorites, icon: Heart },
   { label: "Account", to: CUSTOMER_ROUTES.account, icon: User },
 ] as const;
