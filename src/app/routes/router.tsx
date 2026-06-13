@@ -51,6 +51,9 @@ import { CustomerAvatarManualPage } from "@/features/customer/pages/CustomerAvat
 import { CustomerAvatarPhotoPage } from "@/features/customer/pages/CustomerAvatarPhotoPage";
 import { CustomerCartPage } from "@/features/customer/cart/pages/CustomerCartPage";
 import { CustomerCheckoutPage } from "@/features/customer/cart/pages/CustomerCheckoutPage";
+import { CustomerAboutPage } from "@/features/customer/pages/CustomerAboutPage";
+import { CustomerShippingReturnsPage } from "@/features/customer/pages/CustomerShippingReturnsPage";
+import { CustomerBlogPage } from "@/features/customer/pages/CustomerBlogPage";
 
 import { CUSTOMER_ROUTES } from "@/features/customer/routes/customerRoutes";
 
@@ -235,6 +238,18 @@ const router = createBrowserRouter([
           {
             path: "checkout",
             element: <CustomerCheckoutPage />,
+          },
+          {
+            path: "about",
+            element: <CustomerAboutPage />,
+          },
+          {
+            path: "shipping-returns",
+            element: <CustomerShippingReturnsPage />,
+          },
+          {
+            path: "blog",
+            element: <CustomerBlogPage />,
           },
         ],
       },

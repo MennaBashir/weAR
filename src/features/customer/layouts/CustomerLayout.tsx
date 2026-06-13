@@ -211,10 +211,12 @@ export function CustomerLayout() {
               </Link>
             ))}
           </nav>
-          <div className="text-sm text-[#6F625B]">
-            <p className="font-medium text-[#2F2925]">Need help?</p>
-            <p className="mt-2">Support and order tools will arrive in a later customer phase.</p>
-          </div>
+          <nav aria-label="Customer footer support links" className="grid gap-2 text-sm">
+            <p className="font-medium text-[#2F2925]">Support</p>
+            <Link to={CUSTOMER_ROUTES.about} className={cn("text-[#6F625B] hover:text-[#A37E6B]", customerTheme.focusRing)}>About</Link>
+            <Link to={CUSTOMER_ROUTES.shippingReturns} className={cn("text-[#6F625B] hover:text-[#A37E6B]", customerTheme.focusRing)}>Shipping &amp; Returns</Link>
+            <Link to={CUSTOMER_ROUTES.blog} className={cn("text-[#6F625B] hover:text-[#A37E6B]", customerTheme.focusRing)}>Blog</Link>
+          </nav>
         </div>
       </footer>
     </div>
