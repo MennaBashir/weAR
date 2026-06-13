@@ -1,58 +1,113 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useState, type FormEvent } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import axios from "axios";
 import { Eye, EyeOff } from "lucide-react";
 import { useAuthStore } from "@/features/auth/useAuthStore";
 import loginImg from "@/assets/customer/login.webp";
 import googleIcon from "@/assets/auth/google.svg";
 import { CustomerAuthLayout } from "@/features/customer/components/CustomerAuthLayout";
+import {
+  customerAuthApi,
+  extractCustomerAuthData,
+  getCustomerProfile,
+} from "@/features/customer/api/customerAuth.api";
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as Record<string, unknown> | undefined;
+    return (
+      (data?.message as string | undefined) ||
+      ((data?.errors as string[] | undefined)?.join("، ")) ||
+      fallback
+    );
+  }
+
+  if (error instanceof Error) return error.message;
+
+  return fallback;
+};
 
 export function CustomerLoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const login = useAuthStore((state) => state.login);
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const locationState = location.state as { message?: string } | null;
+
+  const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
-    login(
-      {
-        id: "cust-1",
-        fullName: "Customer User",
-        email: email || "customer@wear.com",
-        brandName: "",
-        businessType: "",
-        has3DModels: false,
-        accountStatus: "active",
-        isEmailVerified: true,
-      },
-      {
-        accessToken: "customer-token",
-        refreshToken: "customer-refresh-token",
-      },
-      "customer",
-    );
-    navigate("/customer/dashboard");
+    setErrorMsg(null);
+    setIsLoading(true);
+
+    try {
+      const response = await customerAuthApi.login({
+        email,
+        password,
+        rememberMe,
+      });
+      const authData = extractCustomerAuthData(response);
+
+      if (authData?.accessToken && authData.refreshToken) {
+        const profile = getCustomerProfile(authData, { email });
+
+        login(
+          profile,
+          {
+            accessToken: authData.accessToken,
+            refreshToken: authData.refreshToken,
+          },
+          "customer",
+        );
+        navigate("/customer/dashboard", { replace: true });
+        return;
+      }
+
+      setErrorMsg(response.message || "Invalid customer credentials.");
+    } catch (error: unknown) {
+      setErrorMsg(
+        getErrorMessage(error, "Something went wrong. Please try again."),
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <CustomerAuthLayout imageSrc={loginImg} imageAlt="Customer Login">
-      <div className="text-center mb-8">
+      <div className="mb-14 text-center">
         <h1
-          className="text-[32px] md:text-[36px] font-bold text-[#A37E6B] mb-2"
+          className="mb-2 text-[36px] font-bold text-[#A37E6B] md:text-[40px]"
           style={{ fontFamily: '"PT Serif", serif' }}
         >
           Login
         </h1>
-        <p className="text-[14px] text-[#B6A092] leading-relaxed">
-          Welcome back! Please log in to access your
+        <p className="text-[20px] leading-[1.05] text-[#C9A390]">
+          Welcome back! Please log in to access
           <br />
-          account
+          your account
         </p>
       </div>
 
       <form onSubmit={handleLogin} className="flex flex-col gap-5">
+        {locationState?.message && (
+          <div className="rounded-[14px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-center text-[14px] text-emerald-700">
+            {locationState.message}
+          </div>
+        )}
+        {errorMsg && (
+          <div className="rounded-[14px] border border-red-200 bg-red-50 px-4 py-3 text-center text-[14px] text-red-600">
+            {errorMsg}
+          </div>
+        )}
+
         <div>
-          <label className="text-[13px] font-medium text-[#B6A092] mb-1.5 block">
+          <label className="mb-3 block text-[18px] font-medium text-[#C9A390]">
             Email
           </label>
           <input
@@ -60,96 +115,82 @@ export function CustomerLoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Enter your Email"
-            className="h-12.5 w-full rounded-2xl border border-[#E4DCD1] px-4 text-[14px] outline-none focus:border-[#C9A390] text-[#5C5550] placeholder:text-[#D3C1B6] bg-white transition-colors"
+            className="h-[80px] w-full rounded-[16px] border border-[#C9A390] bg-white px-5 text-[16px] text-[#5C5550] outline-none transition-colors placeholder:text-[#B6A092] focus:border-[#A37E6B]"
             required
           />
         </div>
 
         <div>
-          <label className="text-[13px] font-medium text-[#B6A092] mb-1.5 block">
+          <label className="mb-3 block text-[18px] font-medium text-[#C9A390]">
             Password
           </label>
           <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your Password"
-              className="h-12.5 w-full rounded-2xl border border-[#E4DCD1] px-4 pr-12 text-[14px] outline-none focus:border-[#C9A390] text-[#5C5550] placeholder:text-[#D3C1B6] bg-white transition-colors"
+              className="h-[80px] w-full rounded-[16px] border border-[#C9A390] bg-white px-5 pr-14 text-[16px] text-[#5C5550] outline-none transition-colors placeholder:text-[#B6A092] focus:border-[#A37E6B]"
               required
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-[#B6A092] hover:text-[#5C5550]"
+              className="absolute right-5 top-1/2 -translate-y-1/2 text-[#B6A092] transition-colors hover:text-[#5C5550]"
+              aria-label={showPassword ? "Hide password" : "Show password"}
             >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              {showPassword ? <EyeOff size={22} /> : <Eye size={22} />}
             </button>
           </div>
-          <div className="text-right mt-1.5">
-            <a
-              href="#"
-              className="text-[12px] text-[#B6A092] hover:text-[#A37E6B] font-medium transition-colors"
+          <div className="mt-2 text-right">
+            <Link
+              to="/forgot-password"
+              className="text-[16px] font-medium text-[#B6A092] transition-colors hover:text-[#A37E6B]"
             >
               Forget Password?
-            </a>
+            </Link>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 mt-1">
-          <div className="relative flex items-center justify-center w-5 h-5 rounded-lg border border-[#C9A390] bg-[#C9A390] overflow-hidden cursor-pointer shadow-sm shadow-[#C9A390]/20">
-            <input
-              type="checkbox"
-              className="absolute opacity-0 cursor-pointer w-full h-full"
-              defaultChecked
-            />
-            <svg
-              className="w-3.5 h-3.5 text-white pointer-events-none"
-              viewBox="0 0 14 14"
-              fill="none"
-            >
-              <path
-                d="M3 8L6 11L11 3.5"
-                strokeWidth={2.5}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                stroke="currentColor"
-              ></path>
-            </svg>
-          </div>
-          <span className="text-[13px] text-[#B6A092] font-medium">
-            Remember me
-          </span>
-        </div>
+        <label className="mt-3 flex items-center gap-3 text-[18px] font-medium text-[#C9A390]">
+          <input
+            type="checkbox"
+            checked={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
+            className="h-5 w-5 accent-[#C9A390]"
+          />
+          Remember me
+        </label>
 
         <button
           type="submit"
-          className="h-12.5 w-full rounded-2xl bg-[#C9A390] text-white font-bold text-[15px] hover:opacity-95 transition-opacity mt-3 shadow-md shadow-[#C9A390]/20 tracking-wide"
+          disabled={isLoading}
+          className="mt-2 h-[80px] w-full rounded-[16px] bg-[#C9A390] text-[20px] font-medium text-white shadow-md shadow-[#C9A390]/20 transition-opacity hover:opacity-95 disabled:opacity-70"
         >
-          Login
+          {isLoading ? "Loading..." : "Login"}
         </button>
 
-        <div className="flex items-center gap-4 my-2">
-          <div className="h-px flex-1 bg-[#E4DCD1]"></div>
-          <span className="text-[12px] text-[#B6A092] uppercase font-bold tracking-wider">
+        <div className="my-2 flex items-center gap-2">
+          <div className="h-px flex-1 bg-[#C9A390]"></div>
+          <span className="text-[16px] font-medium uppercase text-[#C9A390]">
             OR
           </span>
-          <div className="h-px flex-1 bg-[#E4DCD1]"></div>
+          <div className="h-px flex-1 bg-[#C9A390]"></div>
         </div>
 
         <button
           type="button"
-          className="h-12.5 w-full rounded-2xl border border-[#E4DCD1] bg-white flex items-center justify-center gap-3 text-[#5C5550] font-bold text-[14px] hover:bg-gray-50 transition-colors shadow-sm"
+          className="flex h-[80px] w-full items-center justify-center gap-5 rounded-[16px] border border-[#C9A390] bg-white text-[20px] font-medium text-[#B6A092] shadow-sm transition-colors hover:bg-gray-50"
         >
-          <img src={googleIcon} alt="Google" className="w-5 h-5" />
+          <img src={googleIcon} alt="Google" className="h-7 w-7" />
           Login with Google
         </button>
 
-        <div className="text-center mt-5">
-          <span className="text-[13px] text-[#B6A092]">
-            Don't have an account?{" "}
-          </span>
+        <div className="mt-6 text-center text-[18px] text-[#C9A390]">
+          Don&apos;t have an account?{" "}
           <Link
             to="/signup/customer"
-            className="text-[13px] text-[#A37E6B] font-bold hover:underline transition-all"
+            className="font-medium text-[#A37E6B] transition-all hover:underline"
           >
             Sign Up ↗
           </Link>

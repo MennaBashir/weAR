@@ -41,13 +41,13 @@ export function CustomerAuthLayout({
       <div className="mx-auto flex w-full max-w-[1440px] flex-col items-center justify-center md:pl-16 lg:pl-24">
         <div className="flex w-full flex-col md:flex-row md:items-stretch md:justify-center md:gap-[65px]">
           <section
-            className="flex w-full shrink-0 flex-col justify-center rounded-[28px] bg-white px-8 py-8 md:w-[560px] md:px-11 md:py-10"
-            style={{ boxShadow: "0px 0px 30px 0px rgba(182, 160, 146, 0.25)" }}
+            className="flex min-h-[760px] w-full shrink-0 flex-col justify-center rounded-[28px] border border-[#C9A390] bg-white px-8 py-8 md:w-[560px] md:px-11 md:py-10"
+            style={{ boxShadow: "0px 0px 30px 0px rgba(182, 160, 146, 0.18)" }}
           >
             {children}
           </section>
 
-          <section className="hidden w-full flex-1 overflow-hidden rounded-[28px] md:block max-h-[85vh]">
+          <section className="hidden w-full flex-1 overflow-hidden rounded-[28px] md:block max-h-[85vh] min-h-[760px]">
             <img
               src={imageSrc}
               alt={imageAlt}

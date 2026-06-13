@@ -72,7 +72,19 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    const requestUrl = String(originalRequest?.url || "");
+    const isAuthEndpoint =
+      requestUrl.includes("/auth/login") ||
+      requestUrl.includes("/auth/register") ||
+      requestUrl.includes("/auth/complete-profile") ||
+      requestUrl.includes("/auth/forgot-password") ||
+      requestUrl.includes("/auth/reset-password");
+
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !isAuthEndpoint
+    ) {
       if (isRefreshing) {
         return new Promise(function (resolve, reject) {
           failedQueue.push({ resolve, reject });
@@ -121,23 +133,26 @@ apiClient.interceptors.response.use(
             ] = `Bearer ${newAuthData.accessToken}`;
             return apiClient(originalRequest);
           } else {
-             // Handle case where request succeeds but data indicates failure
-             processQueue(new Error("Refresh failed"));
-             logout();
-             window.location.href = "/login/retailer";
-             return Promise.reject(error);
+            // Handle case where request succeeds but data indicates failure
+            processQueue(new Error("Refresh failed"));
+            logout();
+            window.location.href =
+              role === "customer" ? "/login/customer" : "/login/retailer";
+            return Promise.reject(error);
           }
         } catch (refreshError) {
           processQueue(refreshError, null);
           logout();
-          window.location.href = "/login/retailer";
+          window.location.href =
+            role === "customer" ? "/login/customer" : "/login/retailer";
           return Promise.reject(refreshError);
         } finally {
           isRefreshing = false;
         }
       } else {
         logout();
-        window.location.href = "/login/retailer";
+        window.location.href =
+          role === "customer" ? "/login/customer" : "/login/retailer";
         return Promise.reject(error);
       }
     }
