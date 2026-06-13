@@ -106,3 +106,7 @@ No confirmed Customer endpoints currently exist for:
 - Shipping/tax/coupon calculation
 
 Keep these frontend-only or explicitly blocked until Swagger/deployed backend confirms contracts.
+
+## Stage 12 auth audit note
+
+On 2026-06-13, attempted to fetch the deployed Swagger/OpenAPI documents from `https://vfr-backend.onrender.com` at `/swagger/v1/swagger.json`, `/swagger/index.html`, `/openapi.json`, `/api-docs`, and `/swagger.json`. Each request returned HTTP 403 from the CONNECT tunnel, so the deployed response schema could not be confirmed from this environment. Customer refresh, logout, forgot-password, and reset-password use the documented `CUSTOMER_API_REFERENCE.md` endpoints with conservative payloads. Customer Google login remains blocked in the UI unless/until both `VITE_GOOGLE_CLIENT_ID` and the deployed `/api/customer/auth/login/google` response contract are confirmed.

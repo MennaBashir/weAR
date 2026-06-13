@@ -16,6 +16,8 @@ export const CUSTOMER_ROUTES = {
   checkout: "/customer/checkout",
   login: "/login/customer",
   signup: "/signup/customer",
+  forgotPassword: "/forgot-password/customer",
+  resetPassword: "/reset-password/customer",
 } as const;
 
 export type CustomerRouteKey = keyof typeof CUSTOMER_ROUTES;
