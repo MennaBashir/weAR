@@ -1,8 +1,16 @@
 export interface CustomerProductImage {
   id?: string;
   url: string;
+  imageUrl?: string | null;
   altText?: string | null;
   isPrimary?: boolean;
+  displayOrder?: number | null;
+}
+
+export interface CustomerProductCategory {
+  id?: string | null;
+  name?: string | null;
+  description?: string | null;
 }
 
 export interface CustomerProduct {
@@ -18,6 +26,7 @@ export interface CustomerProduct {
   images?: CustomerProductImage[];
   categoryId?: string | null;
   categoryName?: string | null;
+  category?: CustomerProductCategory | null;
   modelId?: string | null;
   isFavorite?: boolean;
   colors?: string[];
@@ -31,7 +40,10 @@ export interface CustomerProduct {
   stockStatus?: string | null;
   stockQuantity?: number | null;
   views?: number | null;
+  viewsCount?: number | null;
+  reviewCount?: number | null;
   subcategoryName?: string | null;
+  attributes?: Record<string, unknown> | null;
 }
 
 export interface CustomerCategory {

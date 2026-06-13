@@ -11,8 +11,26 @@ import type {
   CustomerOffer,
   CustomerPaginatedResult,
   CustomerProduct,
+  CustomerProductImage,
   ProductsByModelIdsPayload,
 } from "@/features/customer/types/catalog";
+
+function normalizeProductImage(img: CustomerProductImage): CustomerProductImage {
+  return {
+    ...img,
+    url: img.url || img.imageUrl || "",
+  };
+}
+
+function normalizeProduct(product: CustomerProduct): CustomerProduct {
+  return {
+    ...product,
+    views: product.views ?? product.viewsCount ?? null,
+    categoryName: product.categoryName ?? product.category?.name ?? null,
+    categoryId: product.categoryId ?? product.category?.id ?? null,
+    images: product.images?.map(normalizeProductImage),
+  };
+}
 
 export const catalogApi = {
   getProducts: async (
@@ -26,9 +44,8 @@ export const catalogApi = {
       }),
     });
 
-    return unwrapCustomerApiData<
-      CustomerPaginatedResult<CustomerProduct>
-    >(response.data);
+    const result = unwrapCustomerApiData<CustomerPaginatedResult<CustomerProduct>>(response.data);
+    return { ...result, items: result.items?.map(normalizeProduct) ?? [] };
   },
 
   getProduct: async (
@@ -38,7 +55,7 @@ export const catalogApi = {
       `/api/catalog/products/${productId}`,
     );
 
-    return unwrapCustomerApiData<CustomerProduct>(response.data);
+    return normalizeProduct(unwrapCustomerApiData<CustomerProduct>(response.data));
   },
 
   getSimilarProducts: async (
@@ -53,7 +70,7 @@ export const catalogApi = {
       },
     );
 
-    return unwrapCustomerApiList<CustomerProduct>(response.data);
+    return unwrapCustomerApiList<CustomerProduct>(response.data).map(normalizeProduct);
   },
 
   compareProducts: async (
@@ -64,7 +81,7 @@ export const catalogApi = {
       payload,
     );
 
-    return unwrapCustomerApiList<CustomerProduct>(response.data);
+    return unwrapCustomerApiList<CustomerProduct>(response.data).map(normalizeProduct);
   },
 
   getProductsByModelIds: async (
@@ -75,7 +92,7 @@ export const catalogApi = {
       payload,
     );
 
-    return unwrapCustomerApiList<CustomerProduct>(response.data);
+    return unwrapCustomerApiList<CustomerProduct>(response.data).map(normalizeProduct);
   },
 
   getCategories: async (): Promise<CustomerCategory[]> => {
