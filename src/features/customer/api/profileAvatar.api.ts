@@ -50,17 +50,132 @@ export const addressesApi = {
   },
 };
 
-const normalizeAvatar = (avatar: CustomerAvatar): CustomerAvatar => ({
+type FlatAvatarResponse = {
+  id: string;
+  customerId?: string;
+  heightCm?: number | null;
+  weightKg?: number | null;
+  chestCm?: number | null;
+  waistCm?: number | null;
+  hipsCm?: number | null;
+  shoulderWidthCm?: number | null;
+  shoulderCm?: number | null;
+  inseamCm?: number | null;
+  neckCm?: number | null;
+  armLengthCm?: number | null;
+  shoeSizeEu?: number | null;
+  bodyShape?: string | null;
+  avatar3dModelUrl?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  lastMeasuredAt?: string;
+  measurements?: BodyMeasurements;
+};
+
+type AvatarHistoryResponse = {
+  items?: Array<{
+    id: string;
+    measurementDataJson?: string | null;
+    source?: string;
+    recordedAt?: string;
+    measurements?: BodyMeasurements;
+    createdAt?: string;
+  }>;
+};
+
+const mapFlatAvatarToCustomerAvatar = (
+  avatar: FlatAvatarResponse,
+  customerId: string,
+): CustomerAvatar => ({
+  id: avatar.id,
+  customerId: avatar.customerId ?? customerId,
+  measurements: normalizeNullableMeasurements(
+    avatar.measurements ?? {
+      heightCm: avatar.heightCm ?? null,
+      weightKg: avatar.weightKg ?? null,
+      chestCm: avatar.chestCm ?? null,
+      waistCm: avatar.waistCm ?? null,
+      hipsCm: avatar.hipsCm ?? null,
+      shoulderCm:
+        avatar.shoulderCm ??
+        avatar.shoulderWidthCm ??
+        null,
+      inseamCm: avatar.inseamCm ?? null,
+    },
+  ),
+  avatar3dModelUrl: avatar.avatar3dModelUrl ?? null,
+  createdAt: avatar.createdAt,
+  updatedAt: avatar.updatedAt ?? avatar.lastMeasuredAt,
+});
+
+const parseHistoryMeasurements = (
+  value?: string | null,
+): BodyMeasurements => {
+  if (!value) {
+    return normalizeNullableMeasurements({});
+  }
+
+  try {
+    const parsed = JSON.parse(value) as Record<string, unknown>;
+
+    return normalizeNullableMeasurements({
+      heightCm:
+        typeof parsed.HeightCm === "number"
+          ? parsed.HeightCm
+          : null,
+      weightKg:
+        typeof parsed.WeightKg === "number"
+          ? parsed.WeightKg
+          : null,
+      chestCm:
+        typeof parsed.ChestCm === "number"
+          ? parsed.ChestCm
+          : null,
+      waistCm:
+        typeof parsed.WaistCm === "number"
+          ? parsed.WaistCm
+          : null,
+      hipsCm:
+        typeof parsed.HipsCm === "number"
+          ? parsed.HipsCm
+          : null,
+      shoulderCm:
+        typeof parsed.ShoulderWidthCm === "number"
+          ? parsed.ShoulderWidthCm
+          : null,
+      inseamCm:
+        typeof parsed.InseamCm === "number"
+          ? parsed.InseamCm
+          : null,
+    });
+  } catch {
+    return normalizeNullableMeasurements({});
+  }
+};
+
+const normalizeAvatar = (
+  avatar: CustomerAvatar,
+): CustomerAvatar => ({
   ...avatar,
   avatar3dModelUrl: avatar.avatar3dModelUrl ?? null,
-  measurements: normalizeNullableMeasurements(avatar.measurements),
+  measurements: normalizeNullableMeasurements(
+    avatar.measurements ?? {},
+  ),
 });
 
 export const avatarApi = {
   getAvatar: async (customerId: string, signal?: AbortSignal): Promise<CustomerAvatar | null> => {
     try {
-      const response = await apiClient.get(`/api/customers/${customerId}/avatar`, { signal });
-      return normalizeAvatar(unwrapCustomerApiData<CustomerAvatar>(response.data));
+      const response = await apiClient.get(
+        `/api/customers/${customerId}/avatar`,
+        { signal },
+      );
+
+      const avatar = unwrapCustomerApiData<FlatAvatarResponse>(
+        response.data,
+      );
+
+      return mapFlatAvatarToCustomerAvatar(avatar, customerId);
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 404) return null;
       throw error;
@@ -74,9 +189,45 @@ export const avatarApi = {
     const response = await apiClient.delete(`/api/customers/${customerId}/avatar`);
     return unwrapCustomerApiData<{ message?: string }>(response.data);
   },
-  getHistory: async (customerId: string, signal?: AbortSignal) => {
-    const response = await apiClient.get(`/api/customers/${customerId}/avatar/history`, { signal });
-    return unwrapCustomerApiData<MeasurementHistoryEntry[]>(response.data).map((entry) => ({ ...entry, measurements: normalizeNullableMeasurements(entry.measurements) }));
+  getHistory: async (
+    customerId: string,
+    signal?: AbortSignal,
+  ) => {
+    const response = await apiClient.get(
+      `/api/customers/${customerId}/avatar/history`,
+      { signal },
+    );
+
+    const history = unwrapCustomerApiData<
+      AvatarHistoryResponse | MeasurementHistoryEntry[]
+    >(response.data);
+
+    const items = Array.isArray(history)
+      ? history
+      : history.items ?? [];
+
+    return items.map((entry) => {
+      if ("measurements" in entry && entry.measurements) {
+        return {
+          ...entry,
+          measurements: normalizeNullableMeasurements(
+            entry.measurements,
+          ),
+        } as MeasurementHistoryEntry;
+      }
+
+      return {
+        id: entry.id,
+        measurements: parseHistoryMeasurements(
+          entry.measurementDataJson,
+        ),
+        source: entry.source ?? "unknown",
+        createdAt:
+          entry.recordedAt ??
+          entry.createdAt ??
+          new Date(0).toISOString(),
+      } satisfies MeasurementHistoryEntry;
+    });
   },
   updateMeasurements: async (customerId: string, measurements: BodyMeasurements) => {
     const response = await apiClient.patch(`/api/customers/${customerId}/avatar/measurements`, { measurements });
@@ -113,23 +264,9 @@ export const avatarApi = {
       lastMeasuredAt?: string;
     }>(response.data);
 
-    return normalizeAvatar({
-      id: extracted.id,
+    return mapFlatAvatarToCustomerAvatar(
+      extracted,
       customerId,
-      measurements: {
-        heightCm: extracted.heightCm ?? null,
-        weightKg: extracted.weightKg ?? null,
-        chestCm: extracted.chestCm ?? null,
-        waistCm: extracted.waistCm ?? null,
-        hipsCm: extracted.hipsCm ?? null,
-        shoulderCm:
-          extracted.shoulderCm ??
-          extracted.shoulderWidthCm ??
-          null,
-        inseamCm: extracted.inseamCm ?? null,
-      },
-      avatar3dModelUrl: extracted.avatar3dModelUrl ?? null,
-      updatedAt: extracted.lastMeasuredAt,
-    });
+    );
   },
 };
