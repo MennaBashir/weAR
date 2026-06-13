@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   Heart,
   Home,
+  Layers,
   Menu,
   Search,
   Shirt,
@@ -27,6 +28,7 @@ const CUSTOMER_NAV_ITEMS = [
   { label: "Shop", to: CUSTOMER_ROUTES.shop, icon: Store },
   { label: "Try On", to: CUSTOMER_ROUTES.tryOn, icon: Shirt },
   { label: "History", to: CUSTOMER_ROUTES.tryOnHistory, icon: Sparkles },
+  { label: "Outfits", to: CUSTOMER_ROUTES.outfits, icon: Layers },
   { label: "Favorites", to: CUSTOMER_ROUTES.favorites, icon: Heart },
   { label: "Account", to: CUSTOMER_ROUTES.account, icon: User },
 ] as const;

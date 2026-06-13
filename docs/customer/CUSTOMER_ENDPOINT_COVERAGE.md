@@ -73,14 +73,14 @@ Remaining work is live contract verification with real products for size recomme
 
 ## Outfits and Recommendations
 
-| Endpoint | Status | Priority |
-|---|---|---:|
-| `GET /outfits` | Not integrated | P2 |
-| `POST /outfits` | Not integrated | P2 |
-| `GET /outfits/{outfitId}` | Not integrated | P2 |
-| `PUT /outfits/{outfitId}` | Not integrated | P2 |
-| `DELETE /outfits/{outfitId}` | Not integrated | P2 |
-| `GET /outfits/complementary` | UI used in Product Details | P1 live verification |
+| Endpoint | Status | Priority | Notes |
+|---|---|---:|---|
+| `GET /api/customers/{customerId}/outfits` | UI used | Complete | Verified: HTTP 200, paginated `ApiResponse<PagedResult<OutfitSummary>>`. |
+| `POST /api/customers/{customerId}/outfits` | UI used | Complete | Verified: HTTP 201, `response.data` is UUID string. 422 `INVALID_OUTFIT_ITEMS` when items are not Favorites. |
+| `GET /api/customers/{customerId}/outfits/{outfitId}` | Blocked — backend defect | — | Verified: existing detail returns HTTP 500 INTERNAL_ERROR. Not exposed in UI. |
+| `PUT /api/customers/{customerId}/outfits/{outfitId}` | Blocked — backend defect | — | Verified: existing update returns HTTP 500 INTERNAL_ERROR. Not exposed in UI. |
+| `DELETE /api/customers/{customerId}/outfits/{outfitId}` | UI used | Complete | Verified: HTTP 204 empty body. No JSON parsing attempted. |
+| `GET /api/customers/{customerId}/outfits/complementary` | Adapter only | P1 live verification | Documented per Command 13; UI consumed in Product Details complementary section. |
 
 ## Try-on
 

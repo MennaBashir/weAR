@@ -28,6 +28,36 @@ Current limitations:
 - Try-on 3D is progressively loaded and keeps 2D as fallback.
 - Cart and checkout frontend boundaries have automated tests.
 
+## Command 16 Saved Outfits (2026-06-13)
+
+### Verified backend contracts
+
+| Endpoint | Verified behavior |
+|---|---|
+| `GET /api/customers/{customerId}/outfits` | HTTP 200. Shape: `{ success: true, data: { items: OutfitSummary[], pageNumber, pageSize, totalCount, totalPages, hasPreviousPage, hasNextPage } }`. |
+| `POST /api/customers/{customerId}/outfits` | HTTP 201. `response.data` is the created outfit UUID string. |
+| `DELETE /api/customers/{customerId}/outfits/{outfitId}` | HTTP 204 empty body. No JSON parsing attempted. |
+| `GET /api/customers/{customerId}/outfits/complementary` | Documented but not live-verified from this environment (same CONNECT tunnel restriction as Command 13). |
+| `POST` 422 INVALID_OUTFIT_ITEMS | Create fails with `code: INVALID_OUTFIT_ITEMS` when any item is not a customer Favorite. |
+| `GET /api/customers/{customerId}/outfits/{outfitId}` | **Backend defect**: returns HTTP 500 INTERNAL_ERROR for existing outfits. Not exposed in UI. |
+| `PUT /api/customers/{customerId}/outfits/{outfitId}` | **Backend defect**: returns HTTP 500 INTERNAL_ERROR for existing outfits. Not exposed in UI. |
+
+### Verified OutfitSummary shape
+
+```
+{ id: string, name: string | null, style: string | null, itemCount: number, slotPreviews: Record<string, string | null> | null }
+```
+
+### Implementation notes
+
+- Outfit detail and edit UI is intentionally blocked with "Outfit details and editing are temporarily unavailable."
+- 422 `INVALID_OUTFIT_ITEMS` surfaces an explicit "Add missing products to Favorites" action; no silent favorite mutation occurs.
+- DELETE response body is not JSON-parsed (void adapter).
+- `customerId` is derived exclusively from authenticated Customer state.
+- Outfits list is invalidated after create and after delete.
+- Favorites queries are invalidated when favorite toggle is performed from within the outfits flow.
+- All 42 new outfit tests pass (8 API adapter, 16 query hook, 18 page UI).
+
 ## Command 13 backend contract validation (2026-06-13)
 
 ### Environment and starting point

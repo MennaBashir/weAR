@@ -15,6 +15,7 @@ export const CUSTOMER_ROUTES = {
   productDetails: (productId: string) => `/customer/products/${productId}`,
   cart: "/customer/cart",
   checkout: "/customer/checkout",
+  outfits: "/customer/outfits",
   compare: "/customer/compare",
   about: "/customer/about",
   shippingReturns: "/customer/shipping-returns",

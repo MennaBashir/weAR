@@ -120,3 +120,35 @@ export interface SizeRecommendation {
   explanation?: string | null;
   reason?: string | null;
 }
+
+// Saved Outfits
+
+export interface OutfitItem {
+  productId: string;
+  slotType: number;
+  displayOrder: number;
+}
+
+export interface OutfitSummary {
+  id: string;
+  name: string | null;
+  style: string | null;
+  itemCount: number;
+  slotPreviews: Record<string, string | null> | null;
+}
+
+export interface OutfitPagedResult {
+  items: OutfitSummary[];
+  pageNumber: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+}
+
+export interface CreateOutfitPayload {
+  name?: string | null;
+  styleCategory?: string | null;
+  items?: OutfitItem[] | null;
+}
