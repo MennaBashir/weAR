@@ -13,7 +13,7 @@ export function CustomerAuthLayout({
   imageAlt,
 }: CustomerAuthLayoutProps) {
   return (
-    <div className="relative flex min-h-screen w-full flex-col items-center justify-center overflow-x-hidden bg-white p-4 pt-28 md:p-8 md:pt-20 font-sans">
+    <div className="relative flex h-screen w-full flex-col items-center justify-center overflow-hidden bg-white p-4 pt-24 md:p-4 md:pt-20 font-sans">
       <div className="absolute left-6 top-4 z-20 md:left-8 md:top-6">
         <div className="flex items-center gap-2">
           <div className="h-[60px] w-[65px] overflow-hidden md:h-[80px] md:w-[85px]">
@@ -38,16 +38,16 @@ export function CustomerAuthLayout({
         </div>
       </div>
 
-      <div className="mx-auto flex w-full max-w-[1440px] flex-col items-center justify-center md:pl-16 lg:pl-24">
-        <div className="flex w-full flex-col md:flex-row md:items-stretch md:justify-center md:gap-[65px]">
+      <div className="mx-auto flex h-[calc(100vh-132px)] w-full max-w-[1440px] flex-col items-center justify-center md:pl-16 lg:pl-24">
+        <div className="flex h-full w-full flex-col md:flex-row md:items-stretch md:justify-center md:gap-[65px]">
           <section
-            className="flex w-full shrink-0 flex-col justify-center rounded-[28px] bg-white px-8 py-8 md:w-[560px] md:px-11 md:py-10"
-            style={{ boxShadow: "0px 0px 30px 0px rgba(182, 160, 146, 0.25)" }}
+            className="flex h-full w-full shrink-0 flex-col justify-center overflow-hidden rounded-[28px] border border-[#C9A390] bg-white px-7 py-6 md:w-[560px] md:px-10 md:py-7"
+            style={{ boxShadow: "0px 0px 30px 0px rgba(182, 160, 146, 0.18)" }}
           >
             {children}
           </section>
 
-          <section className="hidden w-full flex-1 overflow-hidden rounded-[28px] md:block max-h-[85vh]">
+          <section className="hidden h-full w-full flex-1 overflow-hidden rounded-[28px] md:block">
             <img
               src={imageSrc}
               alt={imageAlt}
@@ -56,7 +56,7 @@ export function CustomerAuthLayout({
           </section>
         </div>
 
-        <div className="mt-4 flex w-full flex-col md:flex-row md:justify-center md:gap-[65px]">
+        <div className="mt-2 flex w-full flex-col md:flex-row md:justify-center md:gap-[65px]">
           <footer
             className="w-full text-center text-[#BFC7DE] md:w-[560px] shrink-0"
             style={{
