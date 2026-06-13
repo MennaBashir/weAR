@@ -34,7 +34,7 @@ describe("RequireRole", () => {
             </RequireRole>
           ),
         },
-        { path: "/customer/dashboard", element: <div>Customer Home</div> },
+        { path: "/customer/home", element: <div>Customer Home</div> },
       ],
       { initialEntries: ["/retailer"] },
     );

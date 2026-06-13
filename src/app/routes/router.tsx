@@ -30,9 +30,11 @@ import { RetailerHelpPage } from "@/features/retailer/pages/RetailerHelpPage";
 import { RetailerSettingsPage } from "@/features/retailer/pages/RetailerSettingsPage";
 import { RetailerInventoryPage } from "@/features/retailer/pages/RetailerInventoryPage";
 
-import { CustomerOnboardingPage } from "@/features/customer/pages/CustomerOnboardingPage";
 import { CustomerLoginPage } from "@/features/customer/pages/CustomerLoginPage";
 import { CustomerSignupPage } from "@/features/customer/pages/CustomerSignupPage";
+import { CustomerLayout } from "@/features/customer/layouts/CustomerLayout";
+import { CustomerHomePage } from "@/features/customer/pages/CustomerHomePage";
+import { CUSTOMER_ROUTES } from "@/features/customer/routes/customerRoutes";
 
 import { ComingSoonPage } from "@/features/common/pages/ComingSoonPage";
 
@@ -41,7 +43,6 @@ const router = createBrowserRouter([
     path: "/",
     element: <RoleSelectionPage />,
   },
-  { path: "/customer/onboarding", element: <CustomerOnboardingPage /> },
   {
     element: <AuthLayout />,
     children: [
@@ -55,8 +56,8 @@ const router = createBrowserRouter([
       { path: "/forgot-password", element: <ForgotPasswordPage /> },
       { path: "/reset-password", element: <ResetPasswordPage /> },
 
-      { path: "/login/customer", element: <CustomerLoginPage /> },
-      { path: "/signup/customer", element: <CustomerSignupPage /> },
+      { path: CUSTOMER_ROUTES.login, element: <CustomerLoginPage /> },
+      { path: CUSTOMER_ROUTES.signup, element: <CustomerSignupPage /> },
     ],
   },
   {
@@ -86,16 +87,17 @@ const router = createBrowserRouter([
         ],
       },
       {
-        path: "/customer",
-        element: <Navigate to="/customer/dashboard" replace />,
-      },
-      {
-        path: "/customer/dashboard",
+        path: CUSTOMER_ROUTES.root,
         element: (
           <RequireRole role="customer">
-            <ComingSoonPage />
+            <CustomerLayout />
           </RequireRole>
         ),
+        children: [
+          { index: true, element: <Navigate to={CUSTOMER_ROUTES.home} replace /> },
+          { path: "dashboard", element: <Navigate to={CUSTOMER_ROUTES.home} replace /> },
+          { path: "home", element: <CustomerHomePage /> },
+        ],
       },
       { path: "/admin", element: <ComingSoonPage /> },
     ],

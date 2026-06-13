@@ -21,7 +21,7 @@ export interface RetailerProfile {
   updatedAt?: string;
 }
 
-type AuthState = {
+export type AuthState = {
   user: RetailerProfile | null;
   role: UserRole | null;
   isAuthenticated: boolean;
@@ -104,7 +104,7 @@ export const getHomePathForRole = (role: UserRole): string => {
     case "retailer":
       return "/retailer";
     case "customer":
-      return "/customer/dashboard";
+      return "/customer/home";
     case "admin":
       return "/admin";
     default:

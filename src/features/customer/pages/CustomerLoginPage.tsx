@@ -1,31 +1,17 @@
 import { useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import axios from "axios";
 import { Eye, EyeOff } from "lucide-react";
 import { useAuthStore } from "@/features/auth/useAuthStore";
 import loginImg from "@/assets/customer/login.webp";
 import googleIcon from "@/assets/auth/google.svg";
 import { CustomerAuthLayout } from "@/features/customer/components/CustomerAuthLayout";
+import { CUSTOMER_ROUTES } from "@/features/customer/routes/customerRoutes";
+import { normalizeCustomerApiError } from "@/features/customer/utils/customerErrors";
 import {
   customerAuthApi,
   extractCustomerAuthData,
   getCustomerProfile,
 } from "@/features/customer/api/customerAuth.api";
-
-const getErrorMessage = (error: unknown, fallback: string) => {
-  if (axios.isAxiosError(error)) {
-    const data = error.response?.data as Record<string, unknown> | undefined;
-    return (
-      (data?.message as string | undefined) ||
-      ((data?.errors as string[] | undefined)?.join("، ")) ||
-      fallback
-    );
-  }
-
-  if (error instanceof Error) return error.message;
-
-  return fallback;
-};
 
 export function CustomerLoginPage() {
   const navigate = useNavigate();
@@ -64,14 +50,14 @@ export function CustomerLoginPage() {
           },
           "customer",
         );
-        navigate("/customer/dashboard", { replace: true });
+        navigate(CUSTOMER_ROUTES.home, { replace: true });
         return;
       }
 
       setErrorMsg(response.message || "Invalid customer credentials.");
     } catch (error: unknown) {
       setErrorMsg(
-        getErrorMessage(error, "Something went wrong. Please try again."),
+        normalizeCustomerApiError(error).message,
       );
     } finally {
       setIsLoading(false);
@@ -189,7 +175,7 @@ export function CustomerLoginPage() {
         <div className="mt-3 text-center text-[16px] text-[#C9A390]">
           Don&apos;t have an account?{" "}
           <Link
-            to="/signup/customer"
+            to={CUSTOMER_ROUTES.signup}
             className="font-medium text-[#A37E6B] transition-all hover:underline"
           >
             Sign Up ↗

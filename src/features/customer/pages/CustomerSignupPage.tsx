@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
 import { Eye, EyeOff } from "lucide-react";
 import { useAuthStore } from "@/features/auth/useAuthStore";
 import signupImg from "@/assets/customer/signup.webp";
 import { CustomerAuthLayout } from "@/features/customer/components/CustomerAuthLayout";
+import { CUSTOMER_ROUTES } from "@/features/customer/routes/customerRoutes";
+import { normalizeCustomerApiError } from "@/features/customer/utils/customerErrors";
 import {
   customerAuthApi,
   extractCustomerAuthData,
@@ -15,21 +16,6 @@ import {
 } from "@/features/customer/api/customerAuth.api";
 
 type SignupStep = 1 | 2;
-
-const getErrorMessage = (error: unknown, fallback: string) => {
-  if (axios.isAxiosError(error)) {
-    const data = error.response?.data as Record<string, unknown> | undefined;
-    return (
-      (data?.message as string | undefined) ||
-      ((data?.errors as string[] | undefined)?.join("، ")) ||
-      fallback
-    );
-  }
-
-  if (error instanceof Error) return error.message;
-
-  return fallback;
-};
 
 export function CustomerSignupPage() {
   const navigate = useNavigate();
@@ -73,7 +59,7 @@ export function CustomerSignupPage() {
       }
     } catch (error: unknown) {
       setErrorMsg(
-        getErrorMessage(error, "حدث خطأ أثناء إنشاء الحساب. حاول مرة أخرى."),
+        normalizeCustomerApiError(error, "حدث خطأ أثناء إنشاء الحساب. حاول مرة أخرى.").message,
       );
     } finally {
       setIsLoading(false);
@@ -125,12 +111,12 @@ export function CustomerSignupPage() {
           },
           "customer",
         );
-        navigate("/customer/dashboard", { replace: true });
+        navigate(CUSTOMER_ROUTES.home, { replace: true });
         return;
       }
 
       if (isSuccessfulResponse(response)) {
-        navigate("/login/customer", {
+        navigate(CUSTOMER_ROUTES.login, {
           replace: true,
           state: { message: "تم إنشاء الحساب بنجاح. يمكنك تسجيل الدخول الآن." },
         });
@@ -140,7 +126,7 @@ export function CustomerSignupPage() {
       setErrorMsg(response.message || "تعذر إكمال الملف الشخصي.");
     } catch (error: unknown) {
       setErrorMsg(
-        getErrorMessage(error, "حدث خطأ أثناء إكمال الملف الشخصي."),
+        normalizeCustomerApiError(error, "حدث خطأ أثناء إكمال الملف الشخصي.").message,
       );
     } finally {
       setIsLoading(false);
