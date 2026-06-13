@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 import { createMemoryRouter, Navigate, RouterProvider } from "react-router-dom";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -43,7 +44,12 @@ const renderCustomerRouter = (initialEntry: string) => {
     { initialEntries: [initialEntry] },
   );
 
-  render(<RouterProvider router={router} />);
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  );
   return router;
 };
 
@@ -72,6 +78,6 @@ describe("customer routes", () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe(CUSTOMER_ROUTES.home));
     expect(screen.getAllByText("weAR Customer")[0]).toBeInTheDocument();
-    expect(screen.getAllByText("Welcome, Customer User")[0]).toBeInTheDocument();
+    expect(screen.getAllByText("Curated outfits that fit your body and your style.")[0]).toBeInTheDocument();
   });
 });
