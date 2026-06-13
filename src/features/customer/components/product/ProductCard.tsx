@@ -1,4 +1,4 @@
-import { Heart } from "lucide-react";
+import { BarChart2, Heart } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { PriceDisplay } from "@/features/customer/components/product/PriceDisplay";
@@ -11,6 +11,9 @@ interface ProductCardProps {
   product: CustomerProduct;
   onToggleFavorite?: (productId: string) => void;
   isFavoriteLoading?: boolean;
+  onToggleCompare?: (productId: string) => void;
+  isCompareSelected?: boolean;
+  isCompareFull?: boolean;
 }
 
 const getProductImage = (product: CustomerProduct): string | null =>
@@ -32,6 +35,9 @@ export function ProductCard({
   product,
   onToggleFavorite,
   isFavoriteLoading = false,
+  onToggleCompare,
+  isCompareSelected = false,
+  isCompareFull = false,
 }: ProductCardProps) {
   const imageSrc = getProductImage(product);
   const discountPercentage = getDiscountPercentage(product);
@@ -65,20 +71,41 @@ export function ProductCard({
           </span>
         )}
 
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className={cn("absolute right-3 top-3 rounded-full bg-white/90 text-[#A37E6B] shadow-sm hover:bg-white", customerTheme.focusRing)}
-          aria-label={product.isFavorite ? `Remove ${product.name} from favorites` : `Add ${product.name} to favorites`}
-          disabled={isFavoriteLoading || !onToggleFavorite}
-          onClick={() => onToggleFavorite?.(product.id)}
-        >
-          <Heart
-            className={cn("h-5 w-5", product.isFavorite && "fill-current")}
-            aria-hidden="true"
-          />
-        </Button>
+        <div className="absolute right-3 top-3 flex flex-col gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={cn("rounded-full bg-white/90 text-[#A37E6B] shadow-sm hover:bg-white", customerTheme.focusRing)}
+            aria-label={product.isFavorite ? `Remove ${product.name} from favorites` : `Add ${product.name} to favorites`}
+            disabled={isFavoriteLoading || !onToggleFavorite}
+            onClick={() => onToggleFavorite?.(product.id)}
+          >
+            <Heart
+              className={cn("h-5 w-5", product.isFavorite && "fill-current")}
+              aria-hidden="true"
+            />
+          </Button>
+          {onToggleCompare && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "rounded-full bg-white/90 shadow-sm hover:bg-white",
+                isCompareSelected ? "text-[#A37E6B]" : "text-[#6F625B]",
+                customerTheme.focusRing,
+              )}
+              aria-label={isCompareSelected ? `Remove ${product.name} from comparison` : `Add ${product.name} to comparison`}
+              aria-pressed={isCompareSelected}
+              disabled={!isCompareSelected && isCompareFull}
+              onClick={() => onToggleCompare(product.id)}
+              title={!isCompareSelected && isCompareFull ? "Comparison is full (max 4)" : undefined}
+            >
+              <BarChart2 className={cn("h-5 w-5", isCompareSelected && "fill-current")} aria-hidden="true" />
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="space-y-2 p-4">

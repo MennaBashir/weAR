@@ -1,9 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { catalogApi } from "@/features/customer/api/catalog.api";
 import type { CustomerCatalogParams } from "@/features/customer/types/catalog";
+import { COMPARE_MIN } from "@/features/customer/compare/useCompareStore";
 
 export const customerCatalogKeys = {
   all: ["customer", "catalog"] as const,
+  compare: (productIds: string[]) =>
+    [...["customer", "catalog"], "compare", [...productIds].sort()] as const,
   products: () => [...customerCatalogKeys.all, "products"] as const,
   productsList: (params: CustomerCatalogParams = {}) =>
     [...customerCatalogKeys.products(), "list", params] as const,
@@ -47,4 +50,11 @@ export const useCustomerOffers = () =>
   useQuery({
     queryKey: customerCatalogKeys.offers(),
     queryFn: catalogApi.getOffers,
+  });
+
+export const useCompareProducts = (productIds: string[]) =>
+  useQuery({
+    queryKey: customerCatalogKeys.compare(productIds),
+    queryFn: () => catalogApi.compareProducts({ productIds }),
+    enabled: productIds.length >= COMPARE_MIN,
   });

@@ -1,6 +1,6 @@
-import { SlidersHorizontal, X } from "lucide-react";
+import { BarChart2, SlidersHorizontal, X } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -11,6 +11,8 @@ import {
   useCustomerCategories,
   useCustomerProducts,
 } from "@/features/customer/queries/catalog.queries";
+import { useCompareStore, COMPARE_MAX, COMPARE_MIN } from "@/features/customer/compare/useCompareStore";
+import { CUSTOMER_ROUTES } from "@/features/customer/routes/customerRoutes";
 import { customerTheme } from "@/features/customer/styles/customerTheme";
 import {
   parseShopQuery,
@@ -41,6 +43,19 @@ export function CustomerShopPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const compareIds = useCompareStore((s) => s.productIds);
+  const addToCompare = useCompareStore((s) => s.add);
+  const removeFromCompare = useCompareStore((s) => s.remove);
+  const clearCompare = useCompareStore((s) => s.clear);
+  const isFull = compareIds.length >= COMPARE_MAX;
+
+  const handleToggleCompare = (productId: string) => {
+    if (compareIds.includes(productId)) {
+      removeFromCompare(productId);
+    } else {
+      addToCompare(productId);
+    }
+  };
   const queryState = useMemo(
     () => parseShopQuery(location.search),
     [location.search],
@@ -253,6 +268,31 @@ export function CustomerShopPage() {
               ))}
             </select>
           </div>
+          {compareIds.length > 0 && (
+            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-[#E4DCD1] bg-white px-4 py-3 shadow-sm">
+              <BarChart2 className="h-5 w-5 shrink-0 text-[#A37E6B]" aria-hidden="true" />
+              <span className="text-sm font-semibold text-[#2F2925]">
+                {compareIds.length} of {COMPARE_MAX} selected
+              </span>
+              {compareIds.length >= COMPARE_MIN && (
+                <Link
+                  to={CUSTOMER_ROUTES.compare}
+                  className="rounded-full bg-[#A37E6B] px-4 py-1.5 text-sm font-semibold text-white hover:bg-[#8F6E5D]"
+                >
+                  Compare now
+                </Link>
+              )}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="ml-auto text-[#6F625B]"
+                onClick={clearCompare}
+              >
+                Clear
+              </Button>
+            </div>
+          )}
           {productsQuery.isError ? (
             <ApiErrorState
               title="Catalog unavailable"
@@ -263,6 +303,9 @@ export function CustomerShopPage() {
             <ProductGrid
               products={products}
               isLoading={productsQuery.isLoading}
+              onToggleCompare={handleToggleCompare}
+              compareSelectedIds={compareIds}
+              isCompareFull={isFull}
             />
           )}
           <div className="flex justify-center gap-3">
