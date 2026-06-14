@@ -16,6 +16,7 @@ export const CUSTOMER_ROUTES = {
   cart: "/customer/cart",
   checkout: "/customer/checkout",
   outfits: "/customer/outfits",
+  aiSuggestions: "/customer/ai-suggestions",
   compare: "/customer/compare",
   about: "/customer/about",
   shippingReturns: "/customer/shipping-returns",

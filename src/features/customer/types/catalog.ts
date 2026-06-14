@@ -152,3 +152,36 @@ export interface CreateOutfitPayload {
   styleCategory?: string | null;
   items?: OutfitItem[] | null;
 }
+
+// AI Outfit Suggestions (Command 19)
+
+export interface AiSuggestionProduct {
+  productId?: string | null;
+  modelId?: string | null;
+  slotType?: number | null;
+  displayOrder?: number | null;
+  resolvedProduct?: CustomerProduct | null;
+}
+
+export interface AiSuggestion {
+  suggestionId: string;
+  name?: string | null;
+  styleCategory?: string | null;
+  occasion?: string | null;
+  products: AiSuggestionProduct[];
+}
+
+export interface GenerateSuggestionsPayload {
+  occasion?: string | null;
+  stylePreferences?: string[] | null;
+  favoriteProductIds?: string[] | null;
+  modelIds?: string[] | null;
+  productIds?: string[] | null;
+}
+
+export interface SaveSuggestionPayload {
+  suggestionId: string;
+  name?: string | null;
+  styleCategory?: string | null;
+  items: OutfitItem[];
+}

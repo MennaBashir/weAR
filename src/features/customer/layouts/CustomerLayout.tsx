@@ -12,6 +12,7 @@ import {
   Store,
   Truck,
   User,
+  Wand2,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ const CUSTOMER_NAV_ITEMS = [
   { label: "Try On", to: CUSTOMER_ROUTES.tryOn, icon: Shirt },
   { label: "History", to: CUSTOMER_ROUTES.tryOnHistory, icon: Sparkles },
   { label: "Outfits", to: CUSTOMER_ROUTES.outfits, icon: Layers },
+  { label: "AI Style", to: CUSTOMER_ROUTES.aiSuggestions, icon: Wand2 },
   { label: "Favorites", to: CUSTOMER_ROUTES.favorites, icon: Heart },
   { label: "Account", to: CUSTOMER_ROUTES.account, icon: User },
 ] as const;
