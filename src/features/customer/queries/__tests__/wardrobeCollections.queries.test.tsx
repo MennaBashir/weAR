@@ -1,5 +1,5 @@
 /**
- * Wardrobe Collections query hooks tests — Command 20
+ * Wardrobe Collections query hooks tests — Command 20, runtime-aligned (2026-06-14)
  *
  * Tests 20–30
  */
@@ -12,6 +12,7 @@ import {
   wardrobeCollectionKeys,
   useWardrobeCollections,
   useCreateWardrobeCollection,
+  useRenameWardrobeCollection,
   useDeleteWardrobeCollection,
   useWardrobeCollectionItems,
   useAddWardrobeCollectionItem,
@@ -27,7 +28,7 @@ vi.mock("@/features/customer/api/wardrobeCollections.api", () => ({
   wardrobeCollectionsApi: {
     listCollections: vi.fn(),
     createCollection: vi.fn(),
-    updateCollection: vi.fn(),
+    renameCollection: vi.fn(),
     deleteCollection: vi.fn(),
     listCollectionItems: vi.fn(),
     addCollectionItem: vi.fn(),
@@ -259,9 +260,59 @@ describe("useWardrobeCollectionItems", () => {
   });
 });
 
+describe("useRenameWardrobeCollection", () => {
+  it("28a. calls renameCollection with PATCH { newName } and invalidates list and items", async () => {
+    mockedApi.renameCollection.mockResolvedValueOnce(undefined);
+    const queryClient = makeQueryClient();
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+    const { result } = renderHook(() => useRenameWardrobeCollection(), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        collectionId: "col-1",
+        payload: { newName: "Renamed" },
+      });
+    });
+
+    expect(mockedApi.renameCollection).toHaveBeenCalledWith(
+      "customer-1",
+      "col-1",
+      { newName: "Renamed" },
+    );
+
+    // Should invalidate collection list
+    expect(invalidateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queryKey: expect.arrayContaining(["customer", "wardrobeCollections"]),
+      }),
+    );
+  });
+
+  it("28b. throws when customerId is missing", async () => {
+    useAuthStore.setState({ ...AUTH_USER, isAuthenticated: false, user: null, role: null });
+
+    const queryClient = makeQueryClient();
+    const { result } = renderHook(() => useRenameWardrobeCollection(), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    await expect(
+      act(async () => {
+        await result.current.mutateAsync({
+          collectionId: "col-1",
+          payload: { newName: "Fail" },
+        });
+      }),
+    ).rejects.toThrow("Customer session is required");
+  });
+});
+
 describe("useAddWardrobeCollectionItem", () => {
-  it("28. calls addCollectionItem and invalidates both item list and collection list", async () => {
-    mockedApi.addCollectionItem.mockResolvedValueOnce("item-uuid");
+  it("28. calls addCollectionItem (void/204) and invalidates both item list and collection list", async () => {
+    mockedApi.addCollectionItem.mockResolvedValueOnce(undefined);
     const queryClient = makeQueryClient();
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
 

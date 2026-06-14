@@ -3,6 +3,7 @@ import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
+  Edit2,
   FolderOpen,
   Image,
   Plus,
@@ -15,6 +16,7 @@ import { customerTheme } from "@/features/customer/styles/customerTheme";
 import {
   useWardrobeCollections,
   useCreateWardrobeCollection,
+  useRenameWardrobeCollection,
   useDeleteWardrobeCollection,
   useWardrobeCollectionItems,
   useRemoveWardrobeCollectionItem,
@@ -35,6 +37,7 @@ interface CollectionCardProps {
   isSelected: boolean;
   onSelect: (id: string) => void;
   onDelete: (collection: WardrobeCollectionSummary) => void;
+  onRename: (collection: WardrobeCollectionSummary) => void;
 }
 
 function CollectionCard({
@@ -42,6 +45,7 @@ function CollectionCard({
   isSelected,
   onSelect,
   onDelete,
+  onRename,
 }: CollectionCardProps) {
   return (
     <article
@@ -80,20 +84,36 @@ function CollectionCard({
         )}
       </div>
 
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="w-full justify-center rounded-full text-red-600 hover:bg-red-50 hover:text-red-700"
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete(collection);
-        }}
-        aria-label={`Delete collection ${collection.name}`}
-      >
-        <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
-        Delete
-      </Button>
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="flex-1 justify-center rounded-full text-[#6F625B] hover:bg-[#F4EDE7] hover:text-[#2F2925]"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRename(collection);
+          }}
+          aria-label={`Rename collection ${collection.name}`}
+        >
+          <Edit2 className="mr-2 h-4 w-4" aria-hidden="true" />
+          Rename
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="flex-1 justify-center rounded-full text-red-600 hover:bg-red-50 hover:text-red-700"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(collection);
+          }}
+          aria-label={`Delete collection ${collection.name}`}
+        >
+          <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
+          Delete
+        </Button>
+      </div>
     </article>
   );
 }
@@ -186,8 +206,11 @@ function CreateCollectionForm({ onClose }: CreateCollectionFormProps) {
       setFeedback({ type: "success", message: "Collection created successfully." });
       setTimeout(onClose, 1200);
     } catch (err) {
-      const message =
-        err instanceof WardrobeCollectionApiError
+      const isConflict =
+        err instanceof WardrobeCollectionApiError && err.code === "CONFLICT";
+      const message = isConflict
+        ? err.message
+        : err instanceof WardrobeCollectionApiError
           ? err.message
           : err instanceof Error
             ? err.message
@@ -594,11 +617,15 @@ export function CustomerWardrobeCollectionsPage() {
   const [pendingDelete, setPendingDelete] = useState<WardrobeCollectionSummary | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
+  const [pendingRename, setPendingRename] = useState<WardrobeCollectionSummary | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [renameError, setRenameError] = useState<string | null>(null);
   const [selectedCollection, setSelectedCollection] =
     useState<WardrobeCollectionSummary | null>(null);
 
   const query = useWardrobeCollections(page, PAGE_SIZE);
   const deleteMutation = useDeleteWardrobeCollection();
+  const renameMutation = useRenameWardrobeCollection();
 
   const collections = query.data?.items ?? [];
   const totalPages = query.data?.totalPages ?? 0;
@@ -623,6 +650,36 @@ export function CustomerWardrobeCollectionsPage() {
     } catch {
       setDeleteError("Could not delete the collection. Please try again.");
       setPendingDelete(null);
+    }
+  };
+
+  const handleRenameClick = (collection: WardrobeCollectionSummary) => {
+    setPendingRename(collection);
+    setRenameValue(collection.name);
+    setRenameError(null);
+  };
+
+  const handleRenameConfirm = async () => {
+    if (!pendingRename) return;
+    const trimmed = renameValue.trim();
+    if (!trimmed) {
+      setRenameError("Name is required.");
+      return;
+    }
+    try {
+      await renameMutation.mutateAsync({
+        collectionId: pendingRename.id,
+        payload: { newName: trimmed },
+      });
+      setPendingRename(null);
+      setRenameValue("");
+      setRenameError(null);
+    } catch (err) {
+      setRenameError(
+        err instanceof WardrobeCollectionApiError
+          ? err.message
+          : "Could not rename the collection. Please try again.",
+      );
     }
   };
 
@@ -688,6 +745,72 @@ export function CustomerWardrobeCollectionsPage() {
           onCancel={() => setPendingDelete(null)}
           isPending={deleteMutation.isPending}
         />
+      )}
+
+      {/* Rename dialog */}
+      {pendingRename && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="rename-dialog-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        >
+          <div className={cn(customerTheme.card, "w-full max-w-md space-y-5 p-6")}>
+            <div className="flex items-center justify-between">
+              <h2 id="rename-dialog-title" className="text-lg font-semibold text-[#2F2925]">
+                Rename Collection
+              </h2>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => { setPendingRename(null); setRenameError(null); }}
+                aria-label="Cancel rename"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="rename-name" className="text-sm font-medium text-[#2F2925]">
+                New name <span aria-hidden="true">*</span>
+              </label>
+              <Input
+                id="rename-name"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                placeholder="Collection name"
+                disabled={renameMutation.isPending}
+                aria-required="true"
+                aria-invalid={!!renameError}
+                aria-describedby={renameError ? "rename-error" : undefined}
+              />
+              {renameError && (
+                <p id="rename-error" role="alert" className="text-sm text-red-600">
+                  {renameError}
+                </p>
+              )}
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full"
+                onClick={() => { setPendingRename(null); setRenameError(null); }}
+                disabled={renameMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="rounded-full"
+                onClick={() => void handleRenameConfirm()}
+                disabled={renameMutation.isPending || !renameValue.trim()}
+              >
+                {renameMutation.isPending ? "Saving…" : "Save"}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       <div className="space-y-8">
@@ -775,6 +898,7 @@ export function CustomerWardrobeCollectionsPage() {
                       isSelected={selectedCollection?.id === collection.id}
                       onSelect={handleSelectCollection}
                       onDelete={handleDeleteClick}
+                      onRename={handleRenameClick}
                     />
                   </div>
                 ))}

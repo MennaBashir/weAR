@@ -19,6 +19,7 @@ import type {
 const collectionHooks = vi.hoisted(() => ({
   useWardrobeCollections: vi.fn(),
   useCreateWardrobeCollection: vi.fn(),
+  useRenameWardrobeCollection: vi.fn(),
   useDeleteWardrobeCollection: vi.fn(),
   useWardrobeCollectionItems: vi.fn(),
   useAddWardrobeCollectionItem: vi.fn(),
@@ -134,6 +135,7 @@ beforeEach(() => {
     refetch: vi.fn(),
   });
   collectionHooks.useCreateWardrobeCollection.mockReturnValue(idleMutation());
+  collectionHooks.useRenameWardrobeCollection.mockReturnValue(idleMutation());
   collectionHooks.useDeleteWardrobeCollection.mockReturnValue(idleMutation());
   collectionHooks.useWardrobeCollectionItems.mockReturnValue(idleItemsQuery());
   collectionHooks.useAddWardrobeCollectionItem.mockReturnValue(idleMutation());
@@ -567,5 +569,179 @@ describe("collection toggle selection", () => {
     expect(
       screen.queryByRole("region", { name: /items in summer wardrobe/i }),
     ).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests 56–70 — runtime-verified scenarios (2026-06-14 second batch)
+// ---------------------------------------------------------------------------
+
+import { WardrobeCollectionApiError } from "@/features/customer/api/wardrobeCollections.api";
+
+describe("create collection — CONFLICT (409) runtime-verified", () => {
+  beforeEach(() => {
+    collectionHooks.useWardrobeCollections.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { items: [], pageNumber: 1, pageSize: 12, totalCount: 0, totalPages: 0, hasPreviousPage: false, hasNextPage: false },
+      refetch: vi.fn(),
+    });
+    collectionHooks.useWardrobeCollectionItems.mockReturnValue(idleItemsQuery());
+    collectionHooks.useDeleteWardrobeCollection.mockReturnValue(idleMutation());
+    collectionHooks.useRenameWardrobeCollection.mockReturnValue(idleMutation());
+    collectionHooks.useAddWardrobeCollectionItem.mockReturnValue(idleMutation());
+    collectionHooks.useRemoveWardrobeCollectionItem.mockReturnValue(idleMutation());
+  });
+
+  it("56. shows CONFLICT message and keeps form open on duplicate name", async () => {
+    const conflictError = new WardrobeCollectionApiError(
+      "CONFLICT",
+      "A collection with this name already exists.",
+    );
+    const createAsync = vi.fn().mockRejectedValueOnce(conflictError);
+    collectionHooks.useCreateWardrobeCollection.mockReturnValue(
+      idleMutation({ mutateAsync: createAsync }),
+    );
+
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /new collection/i }));
+    fireEvent.change(screen.getByLabelText(/name/i), {
+      target: { value: "Duplicate Name" },
+    });
+    const form = screen.getByRole("dialog", { name: /create collection/i }).querySelector("form");
+    fireEvent.submit(form!);
+
+    await waitFor(() =>
+      expect(screen.getByText(/a collection with this name already exists/i)).toBeInTheDocument(),
+    );
+    expect(screen.getByRole("dialog", { name: /create collection/i })).toBeInTheDocument();
+  });
+
+  it("57. create form preserves name value after CONFLICT error", async () => {
+    const conflictError = new WardrobeCollectionApiError("CONFLICT", "Already exists.");
+    const createAsync = vi.fn().mockRejectedValueOnce(conflictError);
+    collectionHooks.useCreateWardrobeCollection.mockReturnValue(
+      idleMutation({ mutateAsync: createAsync }),
+    );
+
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /new collection/i }));
+    const nameInput = screen.getByLabelText(/name/i);
+    fireEvent.change(nameInput, { target: { value: "My Name" } });
+    const form = screen.getByRole("dialog", { name: /create collection/i }).querySelector("form");
+    fireEvent.submit(form!);
+
+    await waitFor(() => expect(createAsync).toHaveBeenCalled());
+    expect((nameInput as HTMLInputElement).value).toBe("My Name");
+  });
+
+  it("58. collection list is NOT invalidated after CONFLICT failure", async () => {
+    const conflictError = new WardrobeCollectionApiError("CONFLICT", "Already exists.");
+    const createAsync = vi.fn().mockRejectedValueOnce(conflictError);
+    collectionHooks.useCreateWardrobeCollection.mockReturnValue(
+      idleMutation({ mutateAsync: createAsync }),
+    );
+    const refetch = vi.fn();
+    collectionHooks.useWardrobeCollections.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { items: [], pageNumber: 1, pageSize: 12, totalCount: 0, totalPages: 0, hasPreviousPage: false, hasNextPage: false },
+      refetch,
+    });
+
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /new collection/i }));
+    fireEvent.change(screen.getByLabelText(/name/i), { target: { value: "X" } });
+    const form = screen.getByRole("dialog", { name: /create collection/i }).querySelector("form");
+    fireEvent.submit(form!);
+
+    await waitFor(() => expect(createAsync).toHaveBeenCalled());
+    expect(refetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("rename collection — runtime-verified errors", () => {
+  const COLLECTION_WITH_ITEM = {
+    items: [{ id: "col-1", name: "Summer Wardrobe", itemCount: 1, coverImageUrl: "https://x.com/c.jpg", description: null }],
+    pageNumber: 1, pageSize: 12, totalCount: 1, totalPages: 1, hasPreviousPage: false, hasNextPage: false,
+  };
+
+  beforeEach(() => {
+    collectionHooks.useWardrobeCollections.mockReturnValue({
+      isLoading: false, isError: false, data: COLLECTION_WITH_ITEM, refetch: vi.fn(),
+    });
+    collectionHooks.useWardrobeCollectionItems.mockReturnValue(idleItemsQuery());
+    collectionHooks.useDeleteWardrobeCollection.mockReturnValue(idleMutation());
+    collectionHooks.useCreateWardrobeCollection.mockReturnValue(idleMutation());
+    collectionHooks.useAddWardrobeCollectionItem.mockReturnValue(idleMutation());
+    collectionHooks.useRemoveWardrobeCollectionItem.mockReturnValue(idleMutation());
+  });
+
+  it("59. whitespace-only rename name disables Save and does not call rename", () => {
+    const renameAsync = vi.fn();
+    collectionHooks.useRenameWardrobeCollection.mockReturnValue(
+      idleMutation({ mutateAsync: renameAsync }),
+    );
+
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /rename collection summer wardrobe/i }));
+
+    const dialog = screen.getByRole("dialog", { name: /rename collection/i });
+    const input = dialog.querySelector("input")!;
+    fireEvent.change(input, { target: { value: "   " } });
+
+    expect(screen.getByRole("button", { name: /^save$/i })).toBeDisabled();
+    expect(renameAsync).not.toHaveBeenCalled();
+  });
+
+  it("60. InvalidName 422 backend error is displayed and dialog stays open", async () => {
+    const invalidNameError = new WardrobeCollectionApiError(
+      "InvalidName",
+      "Collection name must not be empty.",
+    );
+    const renameAsync = vi.fn().mockRejectedValueOnce(invalidNameError);
+    collectionHooks.useRenameWardrobeCollection.mockReturnValue(
+      idleMutation({ mutateAsync: renameAsync }),
+    );
+
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /rename collection summer wardrobe/i }));
+
+    const dialog = screen.getByRole("dialog", { name: /rename collection/i });
+    const input = dialog.querySelector("input")!;
+    fireEvent.change(input, { target: { value: "Valid Name" } });
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/collection name must not be empty/i)).toBeInTheDocument(),
+    );
+    expect(screen.getByRole("dialog", { name: /rename collection/i })).toBeInTheDocument();
+  });
+
+  it("61. rename form preserves input on error", async () => {
+    const renameAsync = vi.fn().mockRejectedValueOnce(
+      new WardrobeCollectionApiError("InvalidName", "Collection name must not be empty."),
+    );
+    collectionHooks.useRenameWardrobeCollection.mockReturnValue(
+      idleMutation({ mutateAsync: renameAsync }),
+    );
+
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /rename collection summer wardrobe/i }));
+
+    const dialog = screen.getByRole("dialog", { name: /rename collection/i });
+    const input = dialog.querySelector("input")!;
+    fireEvent.change(input, { target: { value: "My New Name" } });
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+    await waitFor(() => expect(renameAsync).toHaveBeenCalled());
+    expect((input as HTMLInputElement).value).toBe("My New Name");
+  });
+
+  it("62. coverImageUrl is rendered in collection card when present", () => {
+    const { container } = renderPage();
+    const img = container.querySelector("img");
+    expect(img).toBeTruthy();
+    expect(img).toHaveAttribute("src", "https://x.com/c.jpg");
   });
 });

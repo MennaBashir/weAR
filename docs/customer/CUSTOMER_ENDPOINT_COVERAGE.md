@@ -91,13 +91,13 @@ Toggle, list and check endpoints are **Verified UI used**. Saved Outfits uses ex
 
 | Endpoint | Status | Notes |
 |---|---|---|
-| `GET /api/customers/{customerId}/wardrobe/collections` | Complete supported scope — Swagger-only | Command 20. Paginated envelope matching Outfits list shape. customerId from auth. |
-| `POST /api/customers/{customerId}/wardrobe/collections` | Complete supported scope — Swagger-only | Command 20. `name` required (trimmed). Returns UUID string in `data`. `WardrobeCollectionApiError` on error. |
-| `PUT /api/customers/{customerId}/wardrobe/collections/{collectionId}` | Complete supported scope — Swagger-only — **BLOCKED** | Command 20. Using PUT; method (PUT vs PATCH) and success status (200 vs 204) unconfirmed. Cannot runtime-verify (CONNECT 403). |
-| `DELETE /api/customers/{customerId}/wardrobe/collections/{collectionId}` | Complete supported scope — Swagger-only | Command 20. 204 expected; cascade delete unconfirmed. No body parsing. |
-| `GET /api/customers/{customerId}/wardrobe/collections/{collectionId}/items` | Complete supported scope — Swagger-only | Command 20. Paginated; normalizes `productImageUrl` or `primaryImageUrl`. |
-| `POST /api/customers/{customerId}/wardrobe/collections/{collectionId}/items` | Complete supported scope — Swagger-only | Command 20. `productId` required. Returns item UUID. Duplicate behavior unconfirmed. |
-| `DELETE /api/customers/{customerId}/wardrobe/collections/{collectionId}/items/{itemId}` | Complete supported scope — Swagger-only | Command 20. 204 expected; no body parsing. |
+| `GET /api/customers/{customerId}/wardrobe/collections` | Complete supported scope — **runtime-verified** | Command 20. HTTP 200, `data` is a direct array. After add, reflects `itemCount:1` and `coverImageUrl`. Synthesized pagination. |
+| `POST /api/customers/{customerId}/wardrobe/collections` | Complete supported scope — **runtime-verified** | Command 20. HTTP 201, `data` is UUID string. Duplicate name → HTTP 409 CONFLICT (runtime-verified); form stays open, values preserved. |
+| `PATCH /api/customers/{customerId}/wardrobe/collections/{collectionId}` | Complete supported scope — **runtime-verified** | Command 20. PATCH `{ newName }` → HTTP 204. PUT → 405. Blank newName → HTTP 422 InvalidName (runtime-verified); dialog stays open. |
+| `DELETE /api/customers/{customerId}/wardrobe/collections/{collectionId}` | Complete supported scope — **runtime-verified** | Command 20. HTTP 204; subsequent GET confirmed removal. Selected collection cleared on delete. Item queries invalidated. |
+| `GET /api/customers/{customerId}/wardrobe/collections/{collectionId}/items` | Complete supported scope — **runtime-verified (empty case)** | Command 20. HTTP 200 with paginated `data.items` envelope (empty case verified). **After add returns HTTP 500 INTERNAL_ERROR (backend read defect)** — items panel shows error/retry. |
+| `POST /api/customers/{customerId}/wardrobe/collections/{collectionId}/items` | Complete supported scope — **runtime-verified** | Command 20. HTTP 204, empty body. Add persisted (itemCount updated). Duplicate productId → 204 (idempotent in tested deployment). No UUID returned. No client-side duplicate fabricated. |
+| `DELETE /api/customers/{customerId}/wardrobe/collections/{collectionId}/items/{itemId}` | **Swagger-only / runtime-blocked** | Command 20. Swagger: 204 expected. Runtime-blocked: `itemId` unavailable (list items after add returns 500). Uses `itemId`, not `productId`. |
 
 ## Fit Feedback
 

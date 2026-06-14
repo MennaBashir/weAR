@@ -1,11 +1,16 @@
 /**
- * Wardrobe Collections API adapter — Command 20
+ * Wardrobe Collections API adapter — Command 20, runtime-aligned (2026-06-14)
  *
- * All endpoints are Swagger-only (not deployed-verified).
- * CONNECT tunnel to vfr-backend.onrender.com returns 403 Forbidden.
- *
- * Update (PUT /collections/{id}): method and success status unconfirmed.
- * Using PUT; 204 assumed. Documented as blocked pending confirmation.
+ * Runtime-verified facts (2026-06-14):
+ * - List (GET): HTTP 200, response.data is a direct array. itemCount and coverImageUrl present.
+ * - Create (POST): HTTP 201, response.data is UUID string. Duplicate name → HTTP 409 code:CONFLICT.
+ * - Rename (PATCH): { newName } → HTTP 204. PUT → 405. Blank newName → HTTP 422 code:InvalidName.
+ * - Delete (DELETE): HTTP 204, no body. Subsequent GET confirmed removal.
+ * - List items (GET): HTTP 200, paginated data.items envelope (empty collection verified).
+ * - Add item (POST): HTTP 204, empty body. Add persisted; list after add shows itemCount:1 and coverImageUrl.
+ * - Duplicate add: HTTP 204, idempotent — itemCount unchanged; no client-side duplicate created.
+ * - List items after add: HTTP 500 INTERNAL_ERROR (backend defect; add itself succeeded).
+ * - Remove item (DELETE): Swagger-only, runtime-blocked (itemId unavailable due to GET items 500).
  *
  * customerId MUST come from authenticated Customer state, not request body.
  */
@@ -17,7 +22,7 @@ import type {
   WardrobeCollectionSummary,
   WardrobeCollectionItem,
   CreateWardrobeCollectionPayload,
-  UpdateWardrobeCollectionPayload,
+  RenameWardrobeCollectionPayload,
   AddWardrobeCollectionItemPayload,
   ListCollectionsParams,
 } from "@/features/customer/types/wardrobeCollections.types";
@@ -82,9 +87,29 @@ function normalizePagedCollections(payload: unknown): WardrobeCollectionsResult 
     inner = inner.data;
   }
 
-  if (isRecord(inner) && "items" in inner && Array.isArray(inner.items)) {
+  // Primary runtime path: direct array (runtime-verified 2026-06-14)
+  if (Array.isArray(inner)) {
+    const items = inner
+      .map(normalizeCollectionSummary)
+      .filter((c) => c.id !== "" && c.name !== "");
     return {
-      items: inner.items.map(normalizeCollectionSummary),
+      items,
+      pageNumber: 1,
+      pageSize: items.length,
+      totalCount: items.length,
+      totalPages: items.length > 0 ? 1 : 0,
+      hasPreviousPage: false,
+      hasNextPage: false,
+    };
+  }
+
+  // Paginated envelope path (Swagger-described, kept for compatibility)
+  if (isRecord(inner) && "items" in inner && Array.isArray(inner.items)) {
+    const items = inner.items
+      .map(normalizeCollectionSummary)
+      .filter((c) => c.id !== "" && c.name !== "");
+    return {
+      items,
       pageNumber: typeof inner.pageNumber === "number" ? inner.pageNumber : 1,
       pageSize: typeof inner.pageSize === "number" ? inner.pageSize : 10,
       totalCount: typeof inner.totalCount === "number" ? inner.totalCount : 0,
@@ -96,15 +121,10 @@ function normalizePagedCollections(payload: unknown): WardrobeCollectionsResult 
     };
   }
 
-  return {
-    items: [],
-    pageNumber: 1,
-    pageSize: 10,
-    totalCount: 0,
-    totalPages: 0,
-    hasPreviousPage: false,
-    hasNextPage: false,
-  };
+  throw new WardrobeCollectionApiError(
+    "INVALID_LIST_RESPONSE",
+    "Server returned an unexpected response for collection list.",
+  );
 }
 
 function normalizePagedCollectionItems(payload: unknown): WardrobeCollectionItemsResult {
@@ -189,7 +209,7 @@ const ITEM_BASE = (customerId: string, collectionId: string) =>
 export const wardrobeCollectionsApi = {
   /**
    * GET /api/customers/{customerId}/wardrobe/collections
-   * Swagger-only.
+   * Runtime-verified: HTTP 200, direct data array. Refreshed list after add shows itemCount and coverImageUrl.
    */
   listCollections: async (
     customerId: string,
@@ -201,8 +221,8 @@ export const wardrobeCollectionsApi = {
 
   /**
    * POST /api/customers/{customerId}/wardrobe/collections
-   * Swagger-only. Returns UUID string in data.
-   * Trims name before sending; does not send customerId in body.
+   * Runtime-verified: HTTP 201, UUID string in data. Duplicate name → HTTP 409 CONFLICT.
+   * Trims name; does not send customerId in body.
    */
   createCollection: async (
     customerId: string,
@@ -221,25 +241,22 @@ export const wardrobeCollectionsApi = {
   },
 
   /**
-   * PUT /api/customers/{customerId}/wardrobe/collections/{collectionId}
-   * Swagger-only. Method (PUT vs PATCH) and success status (200 vs 204) are unconfirmed.
-   * Using PUT; treating response as 204 (no JSON parsing).
-   *
-   * BLOCKED: exact method and success status pending runtime or Swagger clarification.
+   * PATCH /api/customers/{customerId}/wardrobe/collections/{collectionId}
+   * Runtime-verified (2026-06-14): PATCH { newName } → HTTP 204. PUT returns 405.
+   * No body parsing on success.
    */
-  updateCollection: async (
+  renameCollection: async (
     customerId: string,
     collectionId: string,
-    payload: UpdateWardrobeCollectionPayload,
+    payload: RenameWardrobeCollectionPayload,
   ): Promise<void> => {
-    const body: UpdateWardrobeCollectionPayload = {
-      name: payload.name.trim(),
-      description: payload.description ?? null,
+    const body: RenameWardrobeCollectionPayload = {
+      newName: payload.newName.trim(),
     };
     try {
-      await apiClient.put(`${BASE(customerId)}/${collectionId}`, body);
+      await apiClient.patch(`${BASE(customerId)}/${collectionId}`, body);
     } catch (err: unknown) {
-      rethrowApiError(err, "Collection update failed.");
+      rethrowApiError(err, "Collection rename failed.");
     }
   },
 
@@ -275,27 +292,20 @@ export const wardrobeCollectionsApi = {
 
   /**
    * POST /api/customers/{customerId}/wardrobe/collections/{collectionId}/items
-   * Swagger-only. productId required. Returns item UUID in data.
-   * Duplicate-add behavior unconfirmed (may be 409 or idempotent).
+   * Runtime-verified: HTTP 204, empty body. Add persisted (itemCount updated in list).
+   * Duplicate productId → HTTP 204 (idempotent in tested deployment; itemCount unchanged).
+   * Subsequent GET items → HTTP 500 backend defect (add itself succeeded).
    */
   addCollectionItem: async (
     customerId: string,
     collectionId: string,
     payload: AddWardrobeCollectionItemPayload,
-  ): Promise<string> => {
+  ): Promise<void> => {
     try {
-      const response = await apiClient.post(
+      await apiClient.post(
         ITEM_BASE(customerId, collectionId),
         { productId: payload.productId },
       );
-      const raw = response.data;
-      if (isRecord(raw) && typeof raw.data === "string") {
-        return raw.data;
-      }
-      if (typeof raw === "string" && raw.length > 0) {
-        return raw;
-      }
-      return "";
     } catch (err: unknown) {
       rethrowApiError(err, "Failed to add item to collection.");
     }

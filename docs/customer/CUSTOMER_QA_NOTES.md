@@ -1,5 +1,47 @@
 # Customer Frontend QA Notes
 
+## Command 20 — Runtime Verification Results (2026-06-14)
+
+### Wardrobe Collections — runtime-verified facts
+
+The following facts were verified against the deployed backend (`https://vfr-backend.onrender.com`) on 2026-06-14:
+
+| Endpoint | Method | Runtime result |
+|---|---|---|
+| List collections | GET | HTTP 200, `response.data` is a **direct array** (NOT paginated envelope); after add reflects `itemCount:1` and `coverImageUrl` |
+| Create collection | POST | HTTP 201, `response.data` is UUID string |
+| Create — duplicate name | POST | **HTTP 409 `CONFLICT`** — message preserved; form stays open, values preserved |
+| Rename collection | PATCH `{ newName }` | HTTP 204, empty body. PUT returns **405 Method Not Allowed** |
+| Rename — blank newName | PATCH | **HTTP 422 `InvalidName`** — `"Collection name must not be empty."`; dialog stays open, input preserved |
+| Delete collection | DELETE | **HTTP 204, verified by subsequent GET (empty array)** |
+| List items (empty collection) | GET | HTTP 200 with paginated `data.items` envelope (empty) |
+| Add item | POST | HTTP 204, empty body (no UUID returned). Add persisted — itemCount updated in collection list |
+| Add item — duplicate productId | POST | **HTTP 204 (idempotent in tested deployment)** — itemCount unchanged; no client-side duplicate fabricated |
+| List items after add | GET | **HTTP 500 INTERNAL_ERROR** — backend read defect. Add itself succeeded. UI shows error/retry; does not report add as failed |
+| Remove item | DELETE | **Runtime-blocked** — `itemId` unavailable without working list-items |
+
+### Frontend alignment actions taken (first batch)
+
+- `normalizePagedCollections`: primary path handles direct array; synthesizes pagination metadata; throws `INVALID_LIST_RESPONSE` for unrecognized shape.
+- `renameCollection` uses PATCH with `{ newName }` body only (was PUT with `{ name, description }`).
+- `addCollectionItem` returns `Promise<void>` and does not parse response body.
+- `useRenameWardrobeCollection` query hook updated; `useUpdateWardrobeCollection` removed.
+- `UpdateWardrobeCollectionPayload` type removed (was dead export).
+- Test files updated to reflect runtime-aligned contracts.
+
+### Frontend alignment actions taken (second batch — 2026-06-14)
+
+- Create form: CONFLICT (409) renders backend message; form stays open; values preserved; collection list NOT invalidated on conflict.
+- Rename inline dialog: backend error message (e.g. `InvalidName` 422) now displayed instead of generic fallback.
+- Rename: whitespace-only names blocked client-side before request; Save button disabled.
+- Dead `RenameCollectionForm` component (never rendered) removed.
+- API adapter JSDoc updated with second-batch runtime facts.
+- `coverImageUrl` rendered in collection card when returned by refreshed list.
+- No optimistic itemCount increment; server value authoritative via invalidation/refetch.
+- Tests 56–62 added covering CONFLICT, InvalidName, coverImageUrl, and idempotent add.
+
+---
+
 ## Command 20 — Wardrobe Collections (2026-06-14)
 
 ### Baseline before Command 20
@@ -17,11 +59,17 @@
 
 ### Wardrobe Collections backend status
 
-- All 7 endpoints are **Swagger-only** (CONNECT tunnel to `https://vfr-backend.onrender.com` returns 403 Forbidden — same restriction as all previous commands).
-- No deployed runtime verification performed.
-- Update endpoint (PUT) uses PUT as default; method and success status unconfirmed — documented as blocked.
+- Core collection operations (list, create, rename, delete) and add item are **runtime-verified** (2026-06-14).
+- List: HTTP 200, `data` is a direct array; refreshed after add shows `itemCount:1` and `coverImageUrl`.
+- Create: HTTP 201, `data` is UUID string. Duplicate name → HTTP 409 CONFLICT (runtime-verified).
+- Rename: PATCH `{ newName }` → HTTP 204. PUT → 405. Blank newName → HTTP 422 InvalidName (runtime-verified).
+- Delete: **HTTP 204 (runtime-verified); subsequent GET confirmed empty list.**
+- Add item: HTTP 204, empty body. Persisted. Duplicate productId → 204 (idempotent in tested deployment).
+- List items after add: HTTP 500 INTERNAL_ERROR (backend defect; add succeeded).
+- Remove item: Swagger-only / runtime-blocked (`itemId` unavailable without working list-items).
 - customerId sourced exclusively from authenticated state; never from request body.
 - Does NOT invalidate Favorites or Saved Outfits caches.
+- Command 20 status: **"Core collection operations, rename, and add item are runtime-aligned and runtime-verified. Post-add item retrieval has a backend defect. Remove item remains Swagger-only/runtime-blocked."**
 
 ### Route and nav added
 

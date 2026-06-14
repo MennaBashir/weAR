@@ -11,7 +11,7 @@ import { selectCustomerId } from "@/features/customer/utils/customerSelectors";
 import { wardrobeCollectionsApi } from "@/features/customer/api/wardrobeCollections.api";
 import type {
   CreateWardrobeCollectionPayload,
-  UpdateWardrobeCollectionPayload,
+  RenameWardrobeCollectionPayload,
   AddWardrobeCollectionItemPayload,
 } from "@/features/customer/types/wardrobeCollections.types";
 
@@ -79,7 +79,7 @@ export const useCreateWardrobeCollection = () => {
   });
 };
 
-export const useUpdateWardrobeCollection = () => {
+export const useRenameWardrobeCollection = () => {
   const customerId = useAuthStore(selectCustomerId);
   const queryClient = useQueryClient();
 
@@ -89,10 +89,10 @@ export const useUpdateWardrobeCollection = () => {
       payload,
     }: {
       collectionId: string;
-      payload: UpdateWardrobeCollectionPayload;
+      payload: RenameWardrobeCollectionPayload;
     }) => {
       if (!customerId) throw new Error("Customer session is required");
-      return wardrobeCollectionsApi.updateCollection(
+      return wardrobeCollectionsApi.renameCollection(
         customerId,
         collectionId,
         payload,
@@ -119,10 +119,13 @@ export const useDeleteWardrobeCollection = () => {
       if (!customerId) throw new Error("Customer session is required");
       return wardrobeCollectionsApi.deleteCollection(customerId, collectionId);
     },
-    onSuccess: () => {
+    onSuccess: (_data, collectionId) => {
       if (!customerId) return;
       queryClient.invalidateQueries({
         queryKey: wardrobeCollectionKeys.lists(customerId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: wardrobeCollectionKeys.itemLists(customerId, collectionId),
       });
     },
   });

@@ -1,6 +1,7 @@
-// Wardrobe Collections types — Swagger-only (Command 20)
-// All fields are Swagger-derived unless explicitly marked runtime-verified.
-// Update (rename) method/status unconfirmed: blocked pending Swagger clarification.
+// Wardrobe Collections types — Command 20, runtime-aligned (2026-06-14)
+// Runtime-verified: List returns direct array; Create returns UUID string (201);
+// Rename uses PATCH { newName } → 204; Add item → 204 void; List items empty → paginated envelope;
+// List items after add → 500 backend defect documented.
 
 export interface WardrobeCollectionSummary {
   id: string;
@@ -49,13 +50,12 @@ export interface CreateWardrobeCollectionPayload {
 }
 
 /**
- * Update payload — Swagger-derived fields only.
- * HTTP method (PUT vs PATCH) and success status (200 vs 204) are unconfirmed.
- * This type documents the intended fields; implementation uses PUT pending clarification.
+ * Rename payload — runtime-verified (2026-06-14).
+ * PATCH /collections/{id} with { newName } → HTTP 204.
+ * PUT returns 405 Method Not Allowed.
  */
-export interface UpdateWardrobeCollectionPayload {
-  name: string;
-  description?: string | null;
+export interface RenameWardrobeCollectionPayload {
+  newName: string;
 }
 
 export interface AddWardrobeCollectionItemPayload {
