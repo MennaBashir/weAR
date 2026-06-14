@@ -65,12 +65,21 @@ function getSaveEligibility(
 // ---------------------------------------------------------------------------
 
 function ProductChip({ product }: { product: AiSuggestionProduct }) {
+  // Prefer embedded deployed fields; fall back to resolvedProduct from model-ID lookup
   const imageUrl =
+    product.primaryImageUrl ??
     product.resolvedProduct?.primaryImageUrl ??
     product.resolvedProduct?.imageUrl ??
     product.resolvedProduct?.images?.[0]?.url ??
     null;
-  const name = product.resolvedProduct?.name ?? product.productId ?? product.modelId ?? "Product";
+  const name =
+    product.name ??
+    product.resolvedProduct?.name ??
+    product.productId ??
+    product.modelId ??
+    "Product";
+  const price = product.price ?? product.resolvedProduct?.price ?? null;
+  const currency = product.resolvedProduct?.currency ?? "$";
 
   return (
     <div className="flex items-center gap-2 rounded-lg border border-[#E4DCD1] bg-[#FAF7F5] px-3 py-2">
@@ -89,13 +98,22 @@ function ProductChip({ product }: { product: AiSuggestionProduct }) {
           <Sparkles className="h-4 w-4" />
         </div>
       )}
-      <span className="truncate text-sm text-[#2F2925]">{name}</span>
-      {product.resolvedProduct?.price !== undefined && (
-        <span className="ml-auto shrink-0 text-xs text-[#6F625B]">
-          {product.resolvedProduct.currency ?? "$"}
-          {product.resolvedProduct.price.toFixed(2)}
-        </span>
-      )}
+      <div className="min-w-0 flex-1">
+        <span className="block truncate text-sm text-[#2F2925]">{name}</span>
+        {product.slot && (
+          <span className="text-xs text-[#A37E6B]">{product.slot}</span>
+        )}
+      </div>
+      <div className="ml-auto shrink-0 text-right">
+        {price !== null && (
+          <span className="block text-xs text-[#6F625B]">
+            {currency}{price.toFixed(2)}
+          </span>
+        )}
+        {product.stockStatus && (
+          <span className="block text-xs text-[#A37E6B]">{product.stockStatus}</span>
+        )}
+      </div>
     </div>
   );
 }

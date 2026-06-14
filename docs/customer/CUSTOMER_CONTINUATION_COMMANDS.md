@@ -181,14 +181,18 @@ UI:
 - Link to /customer/outfits after save success.
 - Form values preserved on generation failure.
 
-Runtime-verified (2026-06-14):
+Runtime-verified (2026-06-14 — two tests):
 - weatherCondition required — HTTP 400 when omitted.
-- Deployed generate response: { success:true, data:[{ title, description, matchPercentage, styleTags, items:[] }] }.
-- No suggestionId in tested generate response → save blocked (save is Swagger-only).
+- Generate response shape: { success:true, data:[{ title, description, matchPercentage, styleTags, items:[...] }] }.
+- Item fields confirmed: id, productId, slot (string "Top"), displayOrder, productName, price, primaryImageUrl, stockStatus.
+- No suggestionId in any tested response → save blocked safely.
+- No numeric slotType in any tested response → slot string is display-only, not coerced.
+- Backend returned one item when two productIds were requested (subset — not a frontend error).
 
 Runtime-unconfirmed (documented as blockers):
-- Product-level fields in items array (items was empty in tested call).
-- Save endpoint behavior (requires suggestionId which was absent in tested response).
+- Whether suggestionId is ever returned by generate (not observed).
+- Whether numeric slotType is ever returned by generate (not observed).
+- Save endpoint behavior (requires suggestionId and numeric slotType; neither observed in runtime).
 - Whether Favorites prerequisite applies to save.
 ```
 

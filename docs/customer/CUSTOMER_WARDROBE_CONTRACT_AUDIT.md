@@ -7,41 +7,53 @@
 **Status of deployed tests:** CONNECT tunnel to `https://vfr-backend.onrender.com` returns 403 Forbidden from this execution environment. All endpoint entries below are **Swagger-only** unless explicitly marked **Verified deployed**.  
 **Source documents read:** CUSTOMER_BACKEND_CONTRACT_SNAPSHOT.md, CUSTOMER_CONTINUATION_COMMANDS.md, CUSTOMER_ENDPOINT_COVERAGE.md, CUSTOMER_QA_NOTES.md, CUSTOMER_API_REFERENCE.md, catalog.api.ts, outfits.api.ts, catalog.ts types.
 
-## Command 19 implementation notes (2026-06-14)
+## Command 19 implementation notes (updated 2026-06-14)
 
-AI Outfit Suggestions endpoints are now integrated. All implementation is Swagger-derived; no deployed verification was possible.
+AI Outfit Suggestions — generate endpoint **runtime-verified** (two deployed tests, 2026-06-14). Save endpoint Swagger-only; save currently blocked by missing `suggestionId` and numeric `slotType` in all verified responses.
 
-**Generate adapter (`suggestions.api.ts`):**
-- `weatherCondition` (string) is **runtime-verified required** — omitting it returns HTTP 400 `errors.WeatherCondition: "The WeatherCondition field is required."` from the deployed backend.
-- Supports documented `{ data: { suggestions: [...] } }` Swagger envelope.
-- Supports legacy `{ data: [...] }` direct-array shape for compatibility.
-- Aliases: `id` or `suggestionId` → `suggestionId`; `outfitName` or `name` → `name`.
-- `styleNotes` and `products[].reasoning` preserved from Swagger fields.
-- Model-ID resolution via `getProductsByModelIds` is conditional — called only when products have `modelId` without `productId`.
-- Success response shape: still Swagger-only (not deployed-verified).
+**Generate adapter — runtime-verified fields:**
+- `weatherCondition` required — HTTP 400 when omitted (runtime-verified).
+- Deployed response shape: `{ "success": true, "data": [ { "title", "description", "matchPercentage", "styleTags", "items": [...] } ] }`.
+- Suggestion aliases: `title`→`name`, `description`→`styleNotes`.
+- Item aliases: `productName`→`name`.
+- Item fields confirmed: `id`, `productId`, `slot` (string, display-only), `displayOrder`, `productName`, `price`, `primaryImageUrl`, `stockStatus`.
+- No `suggestionId` or numeric `slotType` in any tested response.
+- Backend may return a subset of requested `productIds`; not a frontend error.
+- Three response shapes supported: deployed direct-array, Swagger `data.suggestions`, legacy direct-array.
+- `suggestionId: string | null` — missing ID does not drop suggestion; no synthetic ID invented.
+- Embedded item display fields rendered without a second product lookup.
+
+**Generate adapter — Swagger-only fields (not deployed-verified):**
+- Swagger envelope `data.suggestions`.
+- `id`/`suggestionId` at suggestion level.
+- Numeric `slotType` at item level.
+- `products[].reasoning`, `modelId`, Swagger product sub-fields.
 
 **Save adapter (`suggestions.api.ts`):**
 - Strict response validation: only non-empty string from `data` or bare string accepted.
 - Invalid/missing/empty response throws `SuggestionApiError("INVALID_SAVE_RESPONSE", ...)`.
 - `INVALID_OUTFIT_ITEMS` 422 extracted and re-thrown as `SuggestionApiError`.
 - `String(raw)` not used.
+- Not deployed-verified.
 
 **Save eligibility (page/UI):**
+- Save disabled when `suggestionId` is null (no synthetic ID invented).
 - Save disabled if any product has no `productId` (unresolved).
 - Save disabled if any product has no numeric `slotType`.
+- `slot` string is display-only; never coerced to numeric `slotType`.
 - Does not filter and save a partial outfit — all-or-nothing.
 - Items built from ALL products in original array order.
 - `displayOrder` from backend used when numeric; array index used as fallback for `displayOrder` only.
-- `slotType` always comes from the backend — array index never substituted.
+- `slotType` always comes from backend — never substituted or invented.
 
 **INVALID_OUTFIT_ITEMS (page/UI):**
 - Explicit guidance shown with link to `/customer/favorites`.
 - No automatic Favorites mutation performed.
 
 **Unconfirmed (runtime-unconfirmed):**
-- `suggestionId` source — frontend sends ID from generate response; backend may require this reference.
-- Whether Favorites prerequisite applies (INVALID_OUTFIT_ITEMS possible on save).
-- Whether any generate request field is mandatory.
+- Whether `suggestionId` is ever returned by generate (not observed in any runtime test).
+- Whether numeric `slotType` is ever returned by generate (not observed; `slot` string is).
+- Whether Favorites prerequisite applies to save (INVALID_OUTFIT_ITEMS possible).
 
 ---
 

@@ -198,20 +198,77 @@ Frontend adapter changes applied:
 - Missing `id`/`suggestionId` no longer drops suggestion; `suggestionId` is `string | null`
 - Save disabled when `suggestionId` is null (no synthetic ID invented)
 
-Status change for `POST /api/customer/wardrobe/suggestions`:
+### Runtime verification: generate with productIds — item fields (2026-06-14)
+
+Second runtime test with `productIds` payload returned populated `items`:
+
+```
+POST /api/customer/wardrobe/suggestions  { weatherCondition: "Clear", productIds: ["cccccccc-..."] }
+HTTP 200
+{
+  "success": true,
+  "data": [
+    {
+      "title": "Casual Chic",
+      "description": "Perfect for a clear day.",
+      "matchPercentage": 95,
+      "styleTags": ["Comfortable","Versatile","Timeless"],
+      "items": [
+        {
+          "id": "25e38c13-76ad-44a6-9b5d-edfe2d23c91d",
+          "productId": "cccccccc-cccc-cccc-cccc-cccc00000002",
+          "slot": "Top",
+          "displayOrder": 0,
+          "productName": "002 - women's short-sleeve, boat-neck blouse...",
+          "price": 49.99,
+          "primaryImageUrl": "https://res.cloudinary.com/...jpg",
+          "stockStatus": "In Stock"
+        }
+      ]
+    }
+  ]
+}
+```
+
+Verified item-level fields:
+- `id` (item UUID)
+- `productId` (product UUID)
+- `slot` (string — display-only; no numeric `slotType` present)
+- `displayOrder` (number)
+- `productName` → normalized to `name`
+- `price` (number)
+- `primaryImageUrl` (string)
+- `stockStatus` (string)
+
+Behavioral observations:
+- Request sent two `productIds`; backend returned one item. This is not a frontend error — only returned items are rendered.
+- `suggestionId` still absent in response — save remains safely blocked.
+- `slotType` still absent — `slot` string is display-only and is never coerced to a numeric slotType.
+- `POST /api/customer/wardrobe/suggestions/save` remains untested.
+
+Frontend adapter changes applied:
+- `productName` → `name` (highest-priority alias for item name)
+- `slot` preserved as `string | null` (display-only)
+- `price`, `primaryImageUrl`, `stockStatus` preserved from item
+- `item.id` preserved as `AiSuggestionProduct.id`
+- `slotType` remains `null` when absent — no enum mapping invented
+- Product display uses embedded item fields; no second product lookup required
+
+Status:
 - Request validation: **runtime-verified** (`weatherCondition` required)
-- Success response shape: **runtime-verified** (deployed 2026-06-14)
-- Save endpoint: still **Swagger-only** (not deployed-verified; save blocked because tested response contained no suggestionId)
+- Generate success response: **runtime-verified** (both empty-items and populated-items shapes)
+- Item-level fields: **runtime-verified** (`id`, `productId`, `slot`, `displayOrder`, `productName`, `price`, `primaryImageUrl`, `stockStatus`)
+- Save endpoint: **Swagger-only** (save blocked — no `suggestionId` or numeric `slotType` in verified responses)
 
 ### Unconfirmed (documented, not guessed)
 
-- Exact success response shape for generate (Swagger-derived only).
-- Whether the Favorites prerequisite applies to save (INVALID_OUTFIT_ITEMS possible).
-- `suggestionId` relationship to generate response (frontend sends the ID from the generate response).
+- Whether `suggestionId` is ever returned by generate (not observed in any runtime test).
+- Whether `slotType` (numeric) is ever returned by generate (not observed; `slot` string is).
+- Whether Favorites prerequisite applies to save (INVALID_OUTFIT_ITEMS possible).
 
-### Test baseline after Command 19
+### Test baseline after Command 19 (final)
 
-`npm test`: 46 files, 294 tests passed.
+`npm test`: 46 files, 329 tests passed.
 
 ---
 

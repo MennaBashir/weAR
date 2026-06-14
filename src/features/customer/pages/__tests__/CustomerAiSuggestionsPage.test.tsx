@@ -88,7 +88,7 @@ const UNRESOLVED_PRODUCT_SUGGESTION: AiSuggestion = {
   ],
 };
 
-// Suggestion with no suggestionId (verified deployed response shape)
+// Suggestion with no suggestionId (verified deployed response shape — first test, empty items)
 const NULL_ID_SUGGESTION: AiSuggestion = {
   suggestionId: null,
   name: "Casual Chic",
@@ -98,6 +98,34 @@ const NULL_ID_SUGGESTION: AiSuggestion = {
   matchPercentage: 95,
   styleTags: ["Comfortable", "Versatile", "Timeless"],
   products: [],
+};
+
+// Suggestion with deployed item fields (second runtime test, 2026-06-14)
+const DEPLOYED_ITEM_SUGGESTION: AiSuggestion = {
+  suggestionId: null,
+  name: "Casual Chic",
+  styleNotes: "Perfect for a clear day.",
+  styleCategory: null,
+  occasion: null,
+  matchPercentage: 95,
+  styleTags: ["Comfortable", "Versatile", "Timeless"],
+  products: [
+    {
+      id: "25e38c13-76ad-44a6-9b5d-edfe2d23c91d",
+      productId: "cccccccc-cccc-cccc-cccc-cccc00000002",
+      modelId: null,
+      slotType: null,
+      slot: "Top",
+      displayOrder: 0,
+      reasoning: null,
+      description: null,
+      name: "002 - women's short-sleeve, boat-neck blouse",
+      price: 49.99,
+      primaryImageUrl: "https://res.cloudinary.com/example.jpg",
+      stockStatus: "In Stock",
+      resolvedProduct: null,
+    },
+  ],
 };
 
 // Suggestion where a product has no slotType
@@ -521,6 +549,100 @@ describe("verified deployed response rendering", () => {
     );
     // Save button is disabled — no synthetic ID was invented to enable it
     expect(screen.getByRole("button", { name: /Save suggestion 1/i })).toBeDisabled();
+  });
+
+  it("renders product name from deployed item without a second lookup", async () => {
+    const mutateAsync = vi.fn().mockResolvedValue([DEPLOYED_ITEM_SUGGESTION]);
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
+    renderPage();
+
+    fillWeather("Clear");
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText("002 - women's short-sleeve, boat-neck blouse")).toBeInTheDocument(),
+    );
+  });
+
+  it("renders slot label from deployed item", async () => {
+    const mutateAsync = vi.fn().mockResolvedValue([DEPLOYED_ITEM_SUGGESTION]);
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
+    renderPage();
+
+    fillWeather("Clear");
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText("Top")).toBeInTheDocument(),
+    );
+  });
+
+  it("renders price from deployed item", async () => {
+    const mutateAsync = vi.fn().mockResolvedValue([DEPLOYED_ITEM_SUGGESTION]);
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
+    renderPage();
+
+    fillWeather("Clear");
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/49\.99/)).toBeInTheDocument(),
+    );
+  });
+
+  it("renders stockStatus from deployed item", async () => {
+    const mutateAsync = vi.fn().mockResolvedValue([DEPLOYED_ITEM_SUGGESTION]);
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
+    renderPage();
+
+    fillWeather("Clear");
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText("In Stock")).toBeInTheDocument(),
+    );
+  });
+
+  it("save remains disabled for deployed item (no suggestionId, no numeric slotType)", async () => {
+    const mutateAsync = vi.fn().mockResolvedValue([DEPLOYED_ITEM_SUGGESTION]);
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
+    renderPage();
+
+    fillWeather("Clear");
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Save suggestion 1/i })).toBeInTheDocument(),
+    );
+    expect(screen.getByRole("button", { name: /Save suggestion 1/i })).toBeDisabled();
+  });
+
+  it("renders only the returned items when backend returns a subset of requested productIds", async () => {
+    const mutateAsync = vi.fn().mockResolvedValue([DEPLOYED_ITEM_SUGGESTION]);
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
+    renderPage();
+
+    fillWeather("Clear");
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("list", { name: /Suggested products/i })).toBeInTheDocument(),
+    );
+    // Only 1 item rendered — not an error that a second requested ID was not returned
+    expect(screen.getByRole("list", { name: /Suggested products/i }).children).toHaveLength(1);
+  });
+
+  it("suggestion remains visible when backend returns a subset of requested productIds", async () => {
+    const mutateAsync = vi.fn().mockResolvedValue([DEPLOYED_ITEM_SUGGESTION]);
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
+    renderPage();
+
+    fillWeather("Clear");
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/1 suggestion generated/i)).toBeInTheDocument(),
+    );
   });
 });
 

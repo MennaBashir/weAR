@@ -53,12 +53,13 @@ The frontend implements list/create/delete and does not expose fake detail/edit 
 
 - Generate: `POST /api/customer/wardrobe/suggestions` — **runtime-verified** (2026-06-14).
   - `weatherCondition` (string) confirmed required: HTTP 400 `errors.WeatherCondition` when omitted.
-  - Deployed success response shape (verified): `{ "success": true, "data": [ { "title": "...", "description": "...", "matchPercentage": 95, "styleTags": [...], "items": [] } ] }`.
-  - Fields differ from Swagger: `title` (not `name`), `description` (not `styleNotes`), `items` (not `products`), no `id`/`suggestionId` field in tested response.
-  - `matchPercentage` (number) and `styleTags` (string[]) present in deployed response; Swagger-undocumented.
-  - Adapter normalizes: `title`→`name`, `description`→`styleNotes`, `items`→`products`, `matchPercentage` and `styleTags` preserved; `id`/`suggestionId` null when absent.
+  - Deployed success response (two runtime tests, 2026-06-14): `{ "success": true, "data": [ { "title": "...", "description": "...", "matchPercentage": 95, "styleTags": [...], "items": [...] } ] }`.
+  - Top-level fields confirmed: `title` (not `name`/`outfitName`), `description` (not `styleNotes`), `matchPercentage`, `styleTags`, `items` (not `products`). No `id`/`suggestionId`.
+  - Item-level fields confirmed: `id`, `productId`, `slot` (string — "Top"; no numeric `slotType`), `displayOrder`, `productName`, `price`, `primaryImageUrl`, `stockStatus`.
+  - Backend may return a subset of requested `productIds`; not a frontend error.
+  - Adapter normalizes: `title`→`name`, `description`→`styleNotes`, `items`/`products`→`products`, `productName`→`name` (item), `slot` preserved display-only, embedded display fields preserved; no second product lookup needed.
   - Missing `suggestionId` does NOT drop the suggestion; `AiSuggestion.suggestionId` is `string | null`.
-  - Product-level fields in `items` remain Swagger-only (items was empty in tested call).
+  - `slot` string is never coerced to numeric `slotType`; no enum mapping invented.
 - Save: `POST /api/customer/wardrobe/suggestions/save` — **Swagger-only** (not deployed-verified; save blocked because tested generate response contained no `suggestionId`). Requires `suggestionId`, `items[]` with `productId`/`slotType`/`displayOrder`; 201 with UUID string in `data`. Strict response validation. All products must be resolved before save is permitted.
 - Model ID resolution: `POST /api/catalog/products/by-model-ids` — adapter exists; called only when suggestion products have `modelId` without `productId`.
 - INVALID_OUTFIT_ITEMS: handled with explicit guidance and link to Favorites; no automatic Favorites mutation.

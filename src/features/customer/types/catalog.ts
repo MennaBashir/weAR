@@ -156,13 +156,18 @@ export interface CreateOutfitPayload {
 // AI Outfit Suggestions (Command 19)
 
 export interface AiSuggestionProduct {
+  id?: string | null;
   productId?: string | null;
   modelId?: string | null;
   slotType?: number | null;
+  slot?: string | null;
   displayOrder?: number | null;
   reasoning?: string | null;
   description?: string | null;
   name?: string | null;
+  price?: number | null;
+  primaryImageUrl?: string | null;
+  stockStatus?: string | null;
   resolvedProduct?: CustomerProduct | null;
 }
 

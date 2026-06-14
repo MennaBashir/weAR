@@ -228,6 +228,89 @@ describe("suggestionsApi.generateSuggestions", () => {
     expect(result[0].suggestionId).toBeNull();
   });
 
+  // ---- verified deployed item fields (second runtime test, 2026-06-14) ----
+
+  const DEPLOYED_ITEM_RESPONSE = {
+    success: true,
+    data: [
+      {
+        title: "Casual Chic",
+        description: "Perfect for a clear day.",
+        matchPercentage: 95,
+        styleTags: ["Comfortable", "Versatile", "Timeless"],
+        items: [
+          {
+            id: "25e38c13-76ad-44a6-9b5d-edfe2d23c91d",
+            productId: "cccccccc-cccc-cccc-cccc-cccc00000002",
+            slot: "Top",
+            displayOrder: 0,
+            productName: "002 - women's short-sleeve, boat-neck blouse",
+            price: 49.99,
+            primaryImageUrl: "https://res.cloudinary.com/example.jpg",
+            stockStatus: "In Stock",
+          },
+        ],
+      },
+    ],
+  };
+
+  it("maps productName -> name in deployed item", async () => {
+    mockedApiClient.post.mockResolvedValueOnce({ data: DEPLOYED_ITEM_RESPONSE });
+    const result = await suggestionsApi.generateSuggestions({ weatherCondition: "Clear", productIds: ["cccccccc-cccc-cccc-cccc-cccc00000002"] });
+    expect(result[0].products[0].name).toBe("002 - women's short-sleeve, boat-neck blouse");
+  });
+
+  it("preserves primaryImageUrl in deployed item", async () => {
+    mockedApiClient.post.mockResolvedValueOnce({ data: DEPLOYED_ITEM_RESPONSE });
+    const result = await suggestionsApi.generateSuggestions({ weatherCondition: "Clear" });
+    expect(result[0].products[0].primaryImageUrl).toBe("https://res.cloudinary.com/example.jpg");
+  });
+
+  it("preserves price in deployed item", async () => {
+    mockedApiClient.post.mockResolvedValueOnce({ data: DEPLOYED_ITEM_RESPONSE });
+    const result = await suggestionsApi.generateSuggestions({ weatherCondition: "Clear" });
+    expect(result[0].products[0].price).toBe(49.99);
+  });
+
+  it("preserves stockStatus in deployed item", async () => {
+    mockedApiClient.post.mockResolvedValueOnce({ data: DEPLOYED_ITEM_RESPONSE });
+    const result = await suggestionsApi.generateSuggestions({ weatherCondition: "Clear" });
+    expect(result[0].products[0].stockStatus).toBe("In Stock");
+  });
+
+  it("preserves slot string in deployed item", async () => {
+    mockedApiClient.post.mockResolvedValueOnce({ data: DEPLOYED_ITEM_RESPONSE });
+    const result = await suggestionsApi.generateSuggestions({ weatherCondition: "Clear" });
+    expect(result[0].products[0].slot).toBe("Top");
+  });
+
+  it("does not convert slot string to numeric slotType", async () => {
+    mockedApiClient.post.mockResolvedValueOnce({ data: DEPLOYED_ITEM_RESPONSE });
+    const result = await suggestionsApi.generateSuggestions({ weatherCondition: "Clear" });
+    expect(result[0].products[0].slotType).toBeNull();
+  });
+
+  it("preserves item id in deployed item", async () => {
+    mockedApiClient.post.mockResolvedValueOnce({ data: DEPLOYED_ITEM_RESPONSE });
+    const result = await suggestionsApi.generateSuggestions({ weatherCondition: "Clear" });
+    expect(result[0].products[0].id).toBe("25e38c13-76ad-44a6-9b5d-edfe2d23c91d");
+  });
+
+  it("preserves productId in deployed item", async () => {
+    mockedApiClient.post.mockResolvedValueOnce({ data: DEPLOYED_ITEM_RESPONSE });
+    const result = await suggestionsApi.generateSuggestions({ weatherCondition: "Clear" });
+    expect(result[0].products[0].productId).toBe("cccccccc-cccc-cccc-cccc-cccc00000002");
+  });
+
+  it("renders only the returned items — does not error when backend returns a subset of requested productIds", async () => {
+    mockedApiClient.post.mockResolvedValueOnce({ data: DEPLOYED_ITEM_RESPONSE });
+    const result = await suggestionsApi.generateSuggestions({
+      weatherCondition: "Clear",
+      productIds: ["cccccccc-cccc-cccc-cccc-cccc00000002", "another-id-not-returned"],
+    });
+    expect(result[0].products).toHaveLength(1);
+  });
+
   // ---- model-ID resolution ----
 
   it("resolves modelIds via catalog when productId is absent", async () => {

@@ -24,16 +24,27 @@ export class SuggestionApiError extends Error {
 
 function normalizeSuggestionProduct(raw: unknown): AiSuggestionProduct {
   if (!isRecord(raw)) {
-    return { productId: null, modelId: null, slotType: null, displayOrder: null, reasoning: null, description: null, name: null, resolvedProduct: null };
+    return { id: null, productId: null, modelId: null, slotType: null, slot: null, displayOrder: null, reasoning: null, description: null, name: null, price: null, primaryImageUrl: null, stockStatus: null, resolvedProduct: null };
   }
   return {
+    id: typeof raw.id === "string" ? raw.id : null,
     productId: typeof raw.productId === "string" ? raw.productId : null,
     modelId: typeof raw.modelId === "string" ? raw.modelId : null,
+    // slotType only when numeric — string slot values are display-only and must not be coerced
     slotType: typeof raw.slotType === "number" ? raw.slotType : null,
+    slot: typeof raw.slot === "string" ? raw.slot : null,
     displayOrder: typeof raw.displayOrder === "number" ? raw.displayOrder : null,
     reasoning: typeof raw.reasoning === "string" ? raw.reasoning : null,
     description: typeof raw.description === "string" ? raw.description : null,
-    name: typeof raw.name === "string" ? raw.name : typeof raw.title === "string" ? raw.title : null,
+    // productName (deployed) → name/title (Swagger/legacy)
+    name:
+      typeof raw.productName === "string" ? raw.productName
+      : typeof raw.name === "string" ? raw.name
+      : typeof raw.title === "string" ? raw.title
+      : null,
+    price: typeof raw.price === "number" ? raw.price : null,
+    primaryImageUrl: typeof raw.primaryImageUrl === "string" ? raw.primaryImageUrl : null,
+    stockStatus: typeof raw.stockStatus === "string" ? raw.stockStatus : null,
     resolvedProduct: null,
   };
 }
