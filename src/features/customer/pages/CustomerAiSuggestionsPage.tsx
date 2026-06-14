@@ -32,11 +32,11 @@ interface SaveEligibility {
 }
 
 function getSaveEligibility(
-  suggestionId: string,
+  suggestionId: string | null,
   products: AiSuggestionProduct[],
 ): SaveEligibility {
   if (!suggestionId) {
-    return { canSave: false, items: null, reason: "Suggestion ID is missing — saving is unavailable." };
+    return { canSave: false, items: null, reason: "This suggestion can be viewed, but the backend did not return a saveable suggestion ID or product items." };
   }
   if (products.length === 0) {
     return { canSave: false, items: null, reason: "No products in this suggestion — saving is unavailable." };
@@ -124,7 +124,7 @@ function SuggestionCard({ suggestion, index }: SuggestionCardProps) {
 
     try {
       await saveMutation.mutateAsync({
-        suggestionId: suggestion.suggestionId,
+        suggestionId: suggestion.suggestionId as string,
         name: suggestion.name ?? null,
         styleCategory: suggestion.styleCategory ?? null,
         items,
@@ -166,6 +166,23 @@ function SuggestionCard({ suggestion, index }: SuggestionCardProps) {
         )}
         {suggestion.styleNotes && (
           <p className="mt-1 text-xs italic text-[#6F625B]">{suggestion.styleNotes}</p>
+        )}
+        {suggestion.matchPercentage !== null && suggestion.matchPercentage !== undefined && (
+          <p className="mt-1 text-xs font-medium text-[#A37E6B]">
+            {suggestion.matchPercentage}% match
+          </p>
+        )}
+        {suggestion.styleTags && suggestion.styleTags.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {suggestion.styleTags.map((tag) => (
+              <span
+                key={tag}
+                className="rounded-full bg-[#F4EDE7] px-2 py-0.5 text-xs text-[#6F625B]"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
         )}
       </div>
 
@@ -519,7 +536,7 @@ export function CustomerAiSuggestionsPage() {
           </p>
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {suggestions.map((suggestion, i) => (
-              <SuggestionCard key={suggestion.suggestionId} suggestion={suggestion} index={i} />
+              <SuggestionCard key={suggestion.suggestionId ?? `suggestion-${i}`} suggestion={suggestion} index={i} />
             ))}
           </div>
         </div>

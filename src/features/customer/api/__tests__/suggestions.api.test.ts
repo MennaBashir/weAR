@@ -151,13 +151,81 @@ describe("suggestionsApi.generateSuggestions", () => {
     expect(result).toHaveLength(0);
   });
 
-  it("skips suggestions with no id or suggestionId", async () => {
+  it("preserves suggestions with no id or suggestionId (null, not dropped)", async () => {
     mockedApiClient.post.mockResolvedValueOnce({
-      data: { success: true, data: { suggestions: [{ outfitName: "no id", products: [] }, DOCUMENTED_RESPONSE.data.suggestions[0]] } },
+      data: { success: true, data: [{ title: "Casual Chic", description: "Perfect for a clear day.", matchPercentage: 95, styleTags: ["Comfortable"], items: [] }] },
     });
-    const result = await suggestionsApi.generateSuggestions({ weatherCondition: "Sunny" });
+    const result = await suggestionsApi.generateSuggestions({ weatherCondition: "Clear" });
     expect(result).toHaveLength(1);
-    expect(result[0].suggestionId).toBe("s1");
+    expect(result[0].suggestionId).toBeNull();
+  });
+
+  // ---- verified deployed response shape (2026-06-14) ----
+
+  const DEPLOYED_RESPONSE = {
+    success: true,
+    data: [
+      {
+        title: "Casual Chic",
+        description: "Perfect for a clear day.",
+        matchPercentage: 95,
+        styleTags: ["Comfortable", "Versatile", "Timeless"],
+        items: [],
+      },
+    ],
+  };
+
+  it("normalizes verified deployed response: direct data array after unwrap", async () => {
+    mockedApiClient.post.mockResolvedValueOnce({ data: DEPLOYED_RESPONSE });
+    const result = await suggestionsApi.generateSuggestions({ weatherCondition: "Clear" });
+    expect(result).toHaveLength(1);
+  });
+
+  it("maps title -> name in verified deployed shape", async () => {
+    mockedApiClient.post.mockResolvedValueOnce({ data: DEPLOYED_RESPONSE });
+    const result = await suggestionsApi.generateSuggestions({ weatherCondition: "Clear" });
+    expect(result[0].name).toBe("Casual Chic");
+  });
+
+  it("maps description -> styleNotes in verified deployed shape", async () => {
+    mockedApiClient.post.mockResolvedValueOnce({ data: DEPLOYED_RESPONSE });
+    const result = await suggestionsApi.generateSuggestions({ weatherCondition: "Clear" });
+    expect(result[0].styleNotes).toBe("Perfect for a clear day.");
+  });
+
+  it("preserves matchPercentage in verified deployed shape", async () => {
+    mockedApiClient.post.mockResolvedValueOnce({ data: DEPLOYED_RESPONSE });
+    const result = await suggestionsApi.generateSuggestions({ weatherCondition: "Clear" });
+    expect(result[0].matchPercentage).toBe(95);
+  });
+
+  it("preserves styleTags in verified deployed shape", async () => {
+    mockedApiClient.post.mockResolvedValueOnce({ data: DEPLOYED_RESPONSE });
+    const result = await suggestionsApi.generateSuggestions({ weatherCondition: "Clear" });
+    expect(result[0].styleTags).toEqual(["Comfortable", "Versatile", "Timeless"]);
+  });
+
+  it("maps items -> products in verified deployed shape", async () => {
+    const withItems = {
+      success: true,
+      data: [{ title: "Look", items: [{ productId: "p1", slotType: 0 }] }],
+    };
+    mockedApiClient.post.mockResolvedValueOnce({ data: withItems });
+    const result = await suggestionsApi.generateSuggestions({ weatherCondition: "Clear" });
+    expect(result[0].products).toHaveLength(1);
+    expect(result[0].products[0].productId).toBe("p1");
+  });
+
+  it("has null suggestionId when backend omits id in deployed shape", async () => {
+    mockedApiClient.post.mockResolvedValueOnce({ data: DEPLOYED_RESPONSE });
+    const result = await suggestionsApi.generateSuggestions({ weatherCondition: "Clear" });
+    expect(result[0].suggestionId).toBeNull();
+  });
+
+  it("does not invent a synthetic suggestionId", async () => {
+    mockedApiClient.post.mockResolvedValueOnce({ data: DEPLOYED_RESPONSE });
+    const result = await suggestionsApi.generateSuggestions({ weatherCondition: "Clear" });
+    expect(result[0].suggestionId).toBeNull();
   });
 
   // ---- model-ID resolution ----

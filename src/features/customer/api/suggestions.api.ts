@@ -24,7 +24,7 @@ export class SuggestionApiError extends Error {
 
 function normalizeSuggestionProduct(raw: unknown): AiSuggestionProduct {
   if (!isRecord(raw)) {
-    return { productId: null, modelId: null, slotType: null, displayOrder: null, reasoning: null, resolvedProduct: null };
+    return { productId: null, modelId: null, slotType: null, displayOrder: null, reasoning: null, description: null, name: null, resolvedProduct: null };
   }
   return {
     productId: typeof raw.productId === "string" ? raw.productId : null,
@@ -32,6 +32,8 @@ function normalizeSuggestionProduct(raw: unknown): AiSuggestionProduct {
     slotType: typeof raw.slotType === "number" ? raw.slotType : null,
     displayOrder: typeof raw.displayOrder === "number" ? raw.displayOrder : null,
     reasoning: typeof raw.reasoning === "string" ? raw.reasoning : null,
+    description: typeof raw.description === "string" ? raw.description : null,
+    name: typeof raw.name === "string" ? raw.name : typeof raw.title === "string" ? raw.title : null,
     resolvedProduct: null,
   };
 }
@@ -39,25 +41,32 @@ function normalizeSuggestionProduct(raw: unknown): AiSuggestionProduct {
 function normalizeSuggestion(raw: unknown): AiSuggestion | null {
   if (!isRecord(raw)) return null;
 
-  // Accept `id` (Swagger-documented) or `suggestionId` (legacy/compatibility)
+  // Accept `id` (Swagger) or `suggestionId` (legacy); null when absent (verified deployed response)
   const id =
     typeof raw.id === "string" ? raw.id
     : typeof raw.suggestionId === "string" ? raw.suggestionId
     : null;
-  if (!id) return null;
 
-  const rawProducts = Array.isArray(raw.products) ? raw.products : [];
+  // Accept `items` (verified deployed) or `products` (Swagger/legacy)
+  const rawProducts = Array.isArray(raw.items) ? raw.items : Array.isArray(raw.products) ? raw.products : [];
 
   return {
     suggestionId: id,
-    // Accept `outfitName` (Swagger-documented) or `name` (legacy/compatibility)
+    // `title` (verified deployed) → `outfitName` (Swagger) → `name` (legacy)
     name:
-      typeof raw.outfitName === "string" ? raw.outfitName
+      typeof raw.title === "string" ? raw.title
+      : typeof raw.outfitName === "string" ? raw.outfitName
       : typeof raw.name === "string" ? raw.name
       : null,
-    styleNotes: typeof raw.styleNotes === "string" ? raw.styleNotes : null,
+    // `description` (verified deployed) → `styleNotes` (Swagger)
+    styleNotes:
+      typeof raw.description === "string" ? raw.description
+      : typeof raw.styleNotes === "string" ? raw.styleNotes
+      : null,
     styleCategory: typeof raw.styleCategory === "string" ? raw.styleCategory : null,
     occasion: typeof raw.occasion === "string" ? raw.occasion : null,
+    matchPercentage: typeof raw.matchPercentage === "number" ? raw.matchPercentage : null,
+    styleTags: Array.isArray(raw.styleTags) ? raw.styleTags.filter((t): t is string => typeof t === "string") : null,
     products: rawProducts.map(normalizeSuggestionProduct),
   };
 }
@@ -65,19 +74,19 @@ function normalizeSuggestion(raw: unknown): AiSuggestion | null {
 /**
  * Extracts the suggestion array from the response envelope.
  *
- * A. Documented Swagger shape: data.suggestions
- * B. Legacy/direct shape: data as a plain array
+ * A. Verified deployed shape: data is a plain array (after unwrapCustomerApiData)
+ * B. Swagger shape: data.suggestions array
  *
  * Returns empty only when neither shape matches.
  */
 function extractSuggestionArray(raw: unknown): unknown[] {
-  // A. Documented: { suggestions: [...] }
-  if (isRecord(raw) && Array.isArray(raw.suggestions)) {
-    return raw.suggestions;
-  }
-  // B. Legacy: direct array
+  // A. Direct array (verified deployed: { success:true, data:[{title,...}] } unwraps to array)
   if (Array.isArray(raw)) {
     return raw;
+  }
+  // B. Swagger: { suggestions: [...] }
+  if (isRecord(raw) && Array.isArray(raw.suggestions)) {
+    return raw.suggestions;
   }
   return [];
 }
@@ -126,6 +135,7 @@ export const suggestionsApi = {
     const suggestions = rawArray
       .map(normalizeSuggestion)
       .filter((s): s is AiSuggestion => s !== null);
+
 
     return resolveModelIds(suggestions);
   },

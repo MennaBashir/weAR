@@ -154,36 +154,41 @@ Create a PR to customer/final-qa and stop after the report.
 ```text
 Implemented on branch claude/tender-goodall-hv68c3, PR #24, base customer/ai-outfit-suggestions.
 
-Endpoints integrated (Swagger-only — not deployed-verified):
-- POST /api/customer/wardrobe/suggestions
-- POST /api/customer/wardrobe/suggestions/save
+Endpoints integrated:
+- POST /api/customer/wardrobe/suggestions — runtime-verified (generate)
+- POST /api/customer/wardrobe/suggestions/save — Swagger-only (save blocked; see below)
 - POST /api/catalog/products/by-model-ids (conditional — only when modelId present without productId)
 
-Response normalization:
-- Supports documented data.suggestions envelope and legacy direct-array shape.
-- Aliases: id/suggestionId → suggestionId; outfitName/name → name.
-- styleNotes and products[].reasoning preserved.
+Response normalization (three shapes supported):
+A. Verified deployed (2026-06-14): data is a direct array; items use title/description/items/matchPercentage/styleTags; no suggestionId.
+B. Swagger: data.suggestions envelope.
+C. Legacy: data as direct array with Swagger field names.
+- Aliases: title/outfitName/name → name; description/styleNotes → styleNotes; items/products → products.
+- matchPercentage (number | null) and styleTags (string[] | null) preserved.
+- suggestionId: string | null — missing ID does not drop suggestion; no synthetic ID invented.
 
 Save constraints enforced:
 - All products must have resolved productId and numeric slotType.
 - Partial-outfit save not permitted.
+- Save disabled when suggestionId is null.
 - INVALID_OUTFIT_ITEMS handled with explicit guidance and link to Favorites; no auto-mutation.
 - Strict save response: only non-empty string accepted; throws SuggestionApiError otherwise.
 
 UI:
-- Generate disabled when all inputs empty; trim and deduplicate inputs.
+- Generate disabled when weatherCondition empty (runtime-verified required field).
+- matchPercentage and styleTags rendered when present.
 - Loading, error, empty, success states.
 - Link to /customer/outfits after save success.
 - Form values preserved on generation failure.
 
-Tests: 46 files, 294 tests after Command 19 (before Command 19 baseline: 43 files, 241 tests).
-
 Runtime-verified (2026-06-14):
-- `weatherCondition` is a required field — HTTP 400 confirmed when omitted.
-- Success response shape still Swagger-only.
+- weatherCondition required — HTTP 400 when omitted.
+- Deployed generate response: { success:true, data:[{ title, description, matchPercentage, styleTags, items:[] }] }.
+- No suggestionId in tested generate response → save blocked (save is Swagger-only).
 
 Runtime-unconfirmed (documented as blockers):
-- Exact success response shape from generate.
+- Product-level fields in items array (items was empty in tested call).
+- Save endpoint behavior (requires suggestionId which was absent in tested response).
 - Whether Favorites prerequisite applies to save.
 ```
 

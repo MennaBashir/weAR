@@ -161,16 +161,47 @@ HTTP 400
 This overrides the earlier Swagger-only assumption that all generation fields are optional.  
 `weatherCondition` (string) is now confirmed required by ASP.NET model validation.
 
-Frontend changes applied:
-- `GenerateSuggestionsPayload.weatherCondition: string` (required, non-nullable)
-- Weather condition input added to generate form (required field)
-- Generate disabled until `weatherCondition` is non-empty after trim
-- Whitespace trimmed before sending
+### Runtime verification: generate success response (2026-06-14)
+
+Real deployed-backend successful response (2026-06-14):
+
+```
+POST /api/customer/wardrobe/suggestions  { weatherCondition: "Clear" }
+HTTP 200
+{
+  "success": true,
+  "data": [
+    {
+      "title": "Casual Chic",
+      "description": "Perfect for a clear day.",
+      "matchPercentage": 95,
+      "styleTags": ["Comfortable","Versatile","Timeless"],
+      "items": []
+    }
+  ]
+}
+```
+
+Observed differences from Swagger:
+- `data` is a direct array, not `{ suggestions: [...] }`.
+- Fields use `title` (not `name`/`outfitName`), `description` (not `styleNotes`), `items` (not `products`).
+- `matchPercentage` and `styleTags` present (Swagger-undocumented).
+- No `id`/`suggestionId` field in response — `suggestionId` is `null` after normalization.
+- `items` array was empty in the tested call; product-level fields remain Swagger-only.
+
+Frontend adapter changes applied:
+- `title` → `name` (highest-priority alias)
+- `description` → `styleNotes` (highest-priority alias)
+- `items` → `products` (accepted alongside `raw.products`)
+- `matchPercentage` preserved as `number | null`
+- `styleTags` preserved as `string[] | null`
+- Missing `id`/`suggestionId` no longer drops suggestion; `suggestionId` is `string | null`
+- Save disabled when `suggestionId` is null (no synthetic ID invented)
 
 Status change for `POST /api/customer/wardrobe/suggestions`:
 - Request validation: **runtime-verified** (`weatherCondition` required)
-- Success response shape: still **Swagger-only** (not deployed-verified)
-- Save endpoint: still **Swagger-only** (not deployed-verified)
+- Success response shape: **runtime-verified** (deployed 2026-06-14)
+- Save endpoint: still **Swagger-only** (not deployed-verified; save blocked because tested response contained no suggestionId)
 
 ### Unconfirmed (documented, not guessed)
 

@@ -49,12 +49,19 @@ Confirmed defects:
 
 The frontend implements list/create/delete and does not expose fake detail/edit behavior.
 
-## AI Outfit Suggestions (Command 19 — Swagger-only, implemented)
+## AI Outfit Suggestions (Command 19 — runtime-verified generate, save Swagger-only)
 
-- Generate: `POST /api/customer/wardrobe/suggestions` — **partially runtime-verified**: `weatherCondition` (string) is confirmed required by deployed backend (HTTP 400 `errors.WeatherCondition: "The WeatherCondition field is required."` observed when omitted). Success response shape remains Swagger-only. Adapter supports documented `{ data: { suggestions: [...] } }` envelope and legacy `{ data: [...] }` direct-array shape. Field aliases: `id`/`suggestionId` → `suggestionId`; `outfitName`/`name` → `name`; `styleNotes` and `products[].reasoning` preserved. Submit guarded in UI until `weatherCondition` is non-empty.
-- Save: `POST /api/customer/wardrobe/suggestions/save` — requires `suggestionId`, `items[]` with `productId`/`slotType`/`displayOrder`; 201 with UUID string in `data`. Strict response validation: only non-empty string accepted; throws `SuggestionApiError` otherwise. All products must be resolved (productId present, slotType numeric) before save is permitted — partial save not allowed.
+- Generate: `POST /api/customer/wardrobe/suggestions` — **runtime-verified** (2026-06-14).
+  - `weatherCondition` (string) confirmed required: HTTP 400 `errors.WeatherCondition` when omitted.
+  - Deployed success response shape (verified): `{ "success": true, "data": [ { "title": "...", "description": "...", "matchPercentage": 95, "styleTags": [...], "items": [] } ] }`.
+  - Fields differ from Swagger: `title` (not `name`), `description` (not `styleNotes`), `items` (not `products`), no `id`/`suggestionId` field in tested response.
+  - `matchPercentage` (number) and `styleTags` (string[]) present in deployed response; Swagger-undocumented.
+  - Adapter normalizes: `title`→`name`, `description`→`styleNotes`, `items`→`products`, `matchPercentage` and `styleTags` preserved; `id`/`suggestionId` null when absent.
+  - Missing `suggestionId` does NOT drop the suggestion; `AiSuggestion.suggestionId` is `string | null`.
+  - Product-level fields in `items` remain Swagger-only (items was empty in tested call).
+- Save: `POST /api/customer/wardrobe/suggestions/save` — **Swagger-only** (not deployed-verified; save blocked because tested generate response contained no `suggestionId`). Requires `suggestionId`, `items[]` with `productId`/`slotType`/`displayOrder`; 201 with UUID string in `data`. Strict response validation. All products must be resolved before save is permitted.
 - Model ID resolution: `POST /api/catalog/products/by-model-ids` — adapter exists; called only when suggestion products have `modelId` without `productId`.
-- Confirmed: weatherCondition is required by deployed request validation. Unconfirmed: whether other generate fields are required and whether the Favorites prerequisite (INVALID_OUTFIT_ITEMS) applies to save. INVALID_OUTFIT_ITEMS handled with explicit guidance and link to Favorites; no automatic Favorites mutation.
+- INVALID_OUTFIT_ITEMS: handled with explicit guidance and link to Favorites; no automatic Favorites mutation.
 
 ## Wardrobe Collections (Swagger-only, Command 20)
 

@@ -88,6 +88,18 @@ const UNRESOLVED_PRODUCT_SUGGESTION: AiSuggestion = {
   ],
 };
 
+// Suggestion with no suggestionId (verified deployed response shape)
+const NULL_ID_SUGGESTION: AiSuggestion = {
+  suggestionId: null,
+  name: "Casual Chic",
+  styleNotes: "Perfect for a clear day.",
+  styleCategory: null,
+  occasion: null,
+  matchPercentage: 95,
+  styleTags: ["Comfortable", "Versatile", "Timeless"],
+  products: [],
+};
+
 // Suggestion where a product has no slotType
 const MISSING_SLOTTYPE_SUGGESTION: AiSuggestion = {
   suggestionId: "s3",
@@ -437,6 +449,82 @@ describe("success state", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Verified deployed response rendering
+// ---------------------------------------------------------------------------
+
+describe("verified deployed response rendering", () => {
+  it("renders a suggestion with null suggestionId without dropping it", async () => {
+    const mutateAsync = vi.fn().mockResolvedValue([NULL_ID_SUGGESTION]);
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
+    renderPage();
+
+    fillWeather("Clear");
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/1 suggestion generated/i)).toBeInTheDocument(),
+    );
+    expect(screen.getByText("Casual Chic")).toBeInTheDocument();
+  });
+
+  it("renders matchPercentage when present", async () => {
+    const mutateAsync = vi.fn().mockResolvedValue([NULL_ID_SUGGESTION]);
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
+    renderPage();
+
+    fillWeather("Clear");
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/95% match/i)).toBeInTheDocument(),
+    );
+  });
+
+  it("renders styleTags when present", async () => {
+    const mutateAsync = vi.fn().mockResolvedValue([NULL_ID_SUGGESTION]);
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
+    renderPage();
+
+    fillWeather("Clear");
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText("Comfortable")).toBeInTheDocument(),
+    );
+    expect(screen.getByText("Versatile")).toBeInTheDocument();
+    expect(screen.getByText("Timeless")).toBeInTheDocument();
+  });
+
+  it("renders styleNotes from description mapping", async () => {
+    const mutateAsync = vi.fn().mockResolvedValue([NULL_ID_SUGGESTION]);
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
+    renderPage();
+
+    fillWeather("Clear");
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText("Perfect for a clear day.")).toBeInTheDocument(),
+    );
+  });
+
+  it("does not use a synthetic suggestion ID — null id suggestion has no synthetic key side-effects", async () => {
+    const mutateAsync = vi.fn().mockResolvedValue([NULL_ID_SUGGESTION]);
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
+    renderPage();
+
+    fillWeather("Clear");
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/1 suggestion generated/i)).toBeInTheDocument(),
+    );
+    // Save button is disabled — no synthetic ID was invented to enable it
+    expect(screen.getByRole("button", { name: /Save suggestion 1/i })).toBeDisabled();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Save eligibility
 // ---------------------------------------------------------------------------
 
@@ -564,6 +652,21 @@ describe("error state", () => {
 
     expect(screen.getByRole("link", { name: /Go to Favorites/i })).toBeInTheDocument();
     // No automatic mutation — save does not call Favorites toggle
+  });
+
+  it("save button is disabled when suggestionId is null", async () => {
+    const mutateAsync = vi.fn().mockResolvedValue([NULL_ID_SUGGESTION]);
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
+    renderPage();
+
+    fillWeather("Clear");
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Save suggestion 1/i })).toBeInTheDocument(),
+    );
+
+    expect(screen.getByRole("button", { name: /Save suggestion 1/i })).toBeDisabled();
   });
 
   it("does not auto-mutate Favorites on INVALID_OUTFIT_ITEMS", async () => {

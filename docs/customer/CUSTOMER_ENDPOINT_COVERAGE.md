@@ -83,7 +83,7 @@ Toggle, list and check endpoints are **Verified UI used**. Saved Outfits uses ex
 
 | Endpoint | Status | Notes |
 |---|---|---|
-| `POST /api/customer/wardrobe/suggestions` | Complete supported scope — partially runtime-verified | `weatherCondition` field confirmed required by deployed backend (HTTP 400 when omitted). Success response shape remains Swagger-only. Adapter supports documented `data.suggestions` envelope and legacy direct-array shape. `weatherCondition` required in UI form. |
+| `POST /api/customer/wardrobe/suggestions` | Complete supported scope — runtime-verified | `weatherCondition` required (HTTP 400 confirmed). Success response runtime-verified (2026-06-14): `data` is a direct array; items use `title`/`description`/`items`/`matchPercentage`/`styleTags`; no `suggestionId` in tested response. Adapter normalizes all three response shapes (deployed direct-array, Swagger `data.suggestions`, legacy direct-array). `suggestionId` is `string \| null`; save disabled when null. |
 | `POST /api/customer/wardrobe/suggestions/save` | Complete supported scope — Swagger-only | Strict non-empty string response required; throws `SuggestionApiError` on invalid response. All products must be resolved with valid productId and slotType before save is enabled. Favorites prerequisite (INVALID_OUTFIT_ITEMS) handled with explicit UI guidance; no automatic Favorites mutation. Not deployed-verified. |
 | `POST /api/catalog/products/by-model-ids` | Adapter only — conditional | Called only when suggestion response products have no productId but have a modelId. Skipped when all products already carry productId. |
 
