@@ -56,7 +56,7 @@ describe("suggestionsApi.generateSuggestions", () => {
   it("normalizes data.suggestions documented envelope", async () => {
     mockedApiClient.post.mockResolvedValueOnce({ data: DOCUMENTED_RESPONSE });
 
-    const result = await suggestionsApi.generateSuggestions({ occasion: "Beach" });
+    const result = await suggestionsApi.generateSuggestions({ weatherCondition: "Sunny", occasion: "Beach" });
 
     expect(result).toHaveLength(1);
     expect(result[0].suggestionId).toBe("s1");
@@ -67,31 +67,42 @@ describe("suggestionsApi.generateSuggestions", () => {
     expect(result[0].products).toHaveLength(2);
     expect(mockedApiClient.post).toHaveBeenCalledWith(
       "/api/customer/wardrobe/suggestions",
-      { occasion: "Beach" },
+      { weatherCondition: "Sunny", occasion: "Beach" },
+    );
+  });
+
+  it("includes weatherCondition in the exact request body (runtime-verified required field)", async () => {
+    mockedApiClient.post.mockResolvedValueOnce({ data: DOCUMENTED_RESPONSE });
+
+    await suggestionsApi.generateSuggestions({ weatherCondition: "Clear" });
+
+    expect(mockedApiClient.post).toHaveBeenCalledWith(
+      "/api/customer/wardrobe/suggestions",
+      expect.objectContaining({ weatherCondition: "Clear" }),
     );
   });
 
   it("maps id -> suggestionId from documented shape", async () => {
     mockedApiClient.post.mockResolvedValueOnce({ data: DOCUMENTED_RESPONSE });
-    const result = await suggestionsApi.generateSuggestions({});
+    const result = await suggestionsApi.generateSuggestions({ weatherCondition: "Sunny" });
     expect(result[0].suggestionId).toBe("s1");
   });
 
   it("maps outfitName -> name from documented shape", async () => {
     mockedApiClient.post.mockResolvedValueOnce({ data: DOCUMENTED_RESPONSE });
-    const result = await suggestionsApi.generateSuggestions({});
+    const result = await suggestionsApi.generateSuggestions({ weatherCondition: "Sunny" });
     expect(result[0].name).toBe("Summer Casual");
   });
 
   it("preserves styleNotes from documented shape", async () => {
     mockedApiClient.post.mockResolvedValueOnce({ data: DOCUMENTED_RESPONSE });
-    const result = await suggestionsApi.generateSuggestions({});
+    const result = await suggestionsApi.generateSuggestions({ weatherCondition: "Sunny" });
     expect(result[0].styleNotes).toBe("Light and breezy");
   });
 
   it("preserves product reasoning from documented shape", async () => {
     mockedApiClient.post.mockResolvedValueOnce({ data: DOCUMENTED_RESPONSE });
-    const result = await suggestionsApi.generateSuggestions({});
+    const result = await suggestionsApi.generateSuggestions({ weatherCondition: "Sunny" });
     expect(result[0].products[0].reasoning).toBe("Goes with anything");
     expect(result[0].products[1].reasoning).toBeNull();
   });
@@ -100,7 +111,7 @@ describe("suggestionsApi.generateSuggestions", () => {
     mockedApiClient.post.mockResolvedValueOnce({
       data: { success: true, data: { suggestions: [] } },
     });
-    const result = await suggestionsApi.generateSuggestions({});
+    const result = await suggestionsApi.generateSuggestions({ weatherCondition: "Sunny" });
     expect(result).toHaveLength(0);
   });
 
@@ -110,7 +121,7 @@ describe("suggestionsApi.generateSuggestions", () => {
     mockedApiClient.post.mockResolvedValueOnce({
       data: { success: true, data: [LEGACY_RAW] },
     });
-    const result = await suggestionsApi.generateSuggestions({});
+    const result = await suggestionsApi.generateSuggestions({ weatherCondition: "Cloudy" });
     expect(result).toHaveLength(1);
     expect(result[0].suggestionId).toBe("s-legacy");
     expect(result[0].name).toBe("Legacy Shape");
@@ -120,7 +131,7 @@ describe("suggestionsApi.generateSuggestions", () => {
     mockedApiClient.post.mockResolvedValueOnce({
       data: { success: true, data: [LEGACY_RAW] },
     });
-    const result = await suggestionsApi.generateSuggestions({});
+    const result = await suggestionsApi.generateSuggestions({ weatherCondition: "Cloudy" });
     expect(result[0].suggestionId).toBe("s-legacy");
   });
 
@@ -128,7 +139,7 @@ describe("suggestionsApi.generateSuggestions", () => {
     mockedApiClient.post.mockResolvedValueOnce({
       data: { success: true, data: [LEGACY_RAW] },
     });
-    const result = await suggestionsApi.generateSuggestions({});
+    const result = await suggestionsApi.generateSuggestions({ weatherCondition: "Cloudy" });
     expect(result[0].name).toBe("Legacy Shape");
   });
 
@@ -136,7 +147,7 @@ describe("suggestionsApi.generateSuggestions", () => {
     mockedApiClient.post.mockResolvedValueOnce({
       data: { success: true, data: null },
     });
-    const result = await suggestionsApi.generateSuggestions({});
+    const result = await suggestionsApi.generateSuggestions({ weatherCondition: "Sunny" });
     expect(result).toHaveLength(0);
   });
 
@@ -144,7 +155,7 @@ describe("suggestionsApi.generateSuggestions", () => {
     mockedApiClient.post.mockResolvedValueOnce({
       data: { success: true, data: { suggestions: [{ outfitName: "no id", products: [] }, DOCUMENTED_RESPONSE.data.suggestions[0]] } },
     });
-    const result = await suggestionsApi.generateSuggestions({});
+    const result = await suggestionsApi.generateSuggestions({ weatherCondition: "Sunny" });
     expect(result).toHaveLength(1);
     expect(result[0].suggestionId).toBe("s1");
   });
@@ -164,7 +175,7 @@ describe("suggestionsApi.generateSuggestions", () => {
       { id: "p-resolved", name: "Resolved Product", price: 49.99, modelId: "m1" } as Awaited<ReturnType<typeof mockedCatalogApi.getProductsByModelIds>>[0],
     ]);
 
-    const result = await suggestionsApi.generateSuggestions({});
+    const result = await suggestionsApi.generateSuggestions({ weatherCondition: "Hot" });
 
     expect(mockedCatalogApi.getProductsByModelIds).toHaveBeenCalledWith({ modelIds: ["m1"] });
     expect(result[0].products[0].productId).toBe("p-resolved");
@@ -173,7 +184,7 @@ describe("suggestionsApi.generateSuggestions", () => {
 
   it("does not call catalog when all products already have productIds", async () => {
     mockedApiClient.post.mockResolvedValueOnce({ data: DOCUMENTED_RESPONSE });
-    await suggestionsApi.generateSuggestions({});
+    await suggestionsApi.generateSuggestions({ weatherCondition: "Sunny" });
     expect(mockedCatalogApi.getProductsByModelIds).not.toHaveBeenCalled();
   });
 });

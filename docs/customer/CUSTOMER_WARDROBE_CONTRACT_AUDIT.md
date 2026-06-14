@@ -12,11 +12,13 @@
 AI Outfit Suggestions endpoints are now integrated. All implementation is Swagger-derived; no deployed verification was possible.
 
 **Generate adapter (`suggestions.api.ts`):**
+- `weatherCondition` (string) is **runtime-verified required** — omitting it returns HTTP 400 `errors.WeatherCondition: "The WeatherCondition field is required."` from the deployed backend.
 - Supports documented `{ data: { suggestions: [...] } }` Swagger envelope.
 - Supports legacy `{ data: [...] }` direct-array shape for compatibility.
 - Aliases: `id` or `suggestionId` → `suggestionId`; `outfitName` or `name` → `name`.
 - `styleNotes` and `products[].reasoning` preserved from Swagger fields.
 - Model-ID resolution via `getProductsByModelIds` is conditional — called only when products have `modelId` without `productId`.
+- Success response shape: still Swagger-only (not deployed-verified).
 
 **Save adapter (`suggestions.api.ts`):**
 - Strict response validation: only non-empty string from `data` or bare string accepted.

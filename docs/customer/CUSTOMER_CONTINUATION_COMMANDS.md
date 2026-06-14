@@ -178,8 +178,12 @@ UI:
 
 Tests: 46 files, 294 tests after Command 19 (before Command 19 baseline: 43 files, 241 tests).
 
-Unconfirmed (runtime-unconfirmed, documented as blockers):
-- Whether any generate field is required.
+Runtime-verified (2026-06-14):
+- `weatherCondition` is a required field — HTTP 400 confirmed when omitted.
+- Success response shape still Swagger-only.
+
+Runtime-unconfirmed (documented as blockers):
+- Exact success response shape from generate.
 - Whether Favorites prerequisite applies to save.
 ```
 

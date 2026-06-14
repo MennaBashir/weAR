@@ -144,9 +144,37 @@ When the backend returns `INVALID_OUTFIT_ITEMS` on save:
 - stylePreferences and productIds trimmed and deduplicated before sending.
 - Form values preserved after generation failure.
 
+### Runtime verification: weatherCondition required
+
+Real deployed-backend test result (2026-06-14):
+
+```
+POST /api/customer/wardrobe/suggestions  (body without weatherCondition)
+HTTP 400
+{
+  "errors": {
+    "WeatherCondition": ["The WeatherCondition field is required."]
+  }
+}
+```
+
+This overrides the earlier Swagger-only assumption that all generation fields are optional.  
+`weatherCondition` (string) is now confirmed required by ASP.NET model validation.
+
+Frontend changes applied:
+- `GenerateSuggestionsPayload.weatherCondition: string` (required, non-nullable)
+- Weather condition input added to generate form (required field)
+- Generate disabled until `weatherCondition` is non-empty after trim
+- Whitespace trimmed before sending
+
+Status change for `POST /api/customer/wardrobe/suggestions`:
+- Request validation: **runtime-verified** (`weatherCondition` required)
+- Success response shape: still **Swagger-only** (not deployed-verified)
+- Save endpoint: still **Swagger-only** (not deployed-verified)
+
 ### Unconfirmed (documented, not guessed)
 
-- Whether any generate request field is required by the backend.
+- Exact success response shape for generate (Swagger-derived only).
 - Whether the Favorites prerequisite applies to save (INVALID_OUTFIT_ITEMS possible).
 - `suggestionId` relationship to generate response (frontend sends the ID from the generate response).
 

@@ -260,12 +260,14 @@ function SuggestionCard({ suggestion, index }: SuggestionCardProps) {
 // ---------------------------------------------------------------------------
 
 interface GenerateFormValues {
+  weatherCondition: string;
   occasion: string;
   stylePreferences: string;
   productIds: string;
 }
 
 const INITIAL_FORM: GenerateFormValues = {
+  weatherCondition: "",
   occasion: "",
   stylePreferences: "",
   productIds: "",
@@ -277,11 +279,8 @@ interface GenerateFormProps {
 }
 
 function isFormEmpty(form: GenerateFormValues): boolean {
-  return (
-    !form.occasion.trim() &&
-    !form.stylePreferences.trim() &&
-    !form.productIds.trim()
-  );
+  // weatherCondition is required; at least that field must be non-empty
+  return !form.weatherCondition.trim();
 }
 
 function GenerateForm({ onGenerate, isPending }: GenerateFormProps) {
@@ -304,6 +303,26 @@ function GenerateForm({ onGenerate, isPending }: GenerateFormProps) {
       className={cn(customerTheme.card, "space-y-4 p-6")}
       aria-label="Generate AI outfit suggestions"
     >
+      <div>
+        <label
+          htmlFor="suggestion-weather"
+          className="mb-1 block text-sm font-medium text-[#2F2925]"
+        >
+          Weather condition <span aria-hidden="true" className="text-red-500">*</span>
+        </label>
+        <Input
+          id="suggestion-weather"
+          value={form.weatherCondition}
+          onChange={(e) => handleChange("weatherCondition", e.target.value)}
+          placeholder="e.g. Clear, Sunny, Cloudy, Rainy, Cold, Hot"
+          required
+          aria-required="true"
+        />
+        <p className="mt-1 text-xs text-[#6F625B]">
+          Required — describes the expected weather for outfit suggestions.
+        </p>
+      </div>
+
       <div>
         <label
           htmlFor="suggestion-occasion"
@@ -370,7 +389,7 @@ function GenerateForm({ onGenerate, isPending }: GenerateFormProps) {
 
       {empty && (
         <p className="text-center text-xs text-[#6F625B]">
-          Enter an occasion, style preferences, or product IDs to generate suggestions.
+          Weather condition is required to generate suggestions.
         </p>
       )}
     </form>
@@ -397,6 +416,7 @@ export function CustomerAiSuggestionsPage() {
 
     try {
       const result = await generateMutation.mutateAsync({
+        weatherCondition: values.weatherCondition.trim(),
         occasion: values.occasion.trim() || null,
         stylePreferences: parseCsvField(values.stylePreferences),
         productIds: parseCsvField(values.productIds),

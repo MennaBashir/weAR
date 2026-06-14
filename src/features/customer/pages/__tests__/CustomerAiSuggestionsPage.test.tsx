@@ -108,9 +108,9 @@ function renderPage() {
   );
 }
 
-// Helper: fill at least one input so the button is enabled
-function fillOccasion(value = "Beach") {
-  fireEvent.change(screen.getByLabelText(/Occasion/i), { target: { value } });
+// Helper: fill weatherCondition (required) so the button is enabled
+function fillWeather(value = "Sunny") {
+  fireEvent.change(screen.getByLabelText(/Weather condition/i), { target: { value } });
 }
 
 beforeEach(() => {
@@ -148,27 +148,59 @@ describe("initial render", () => {
 // ---------------------------------------------------------------------------
 
 describe("form validation", () => {
-  it("submit button is disabled when all inputs are empty", () => {
+  it("submit button is disabled when weatherCondition is empty", () => {
     renderPage();
     expect(screen.getByRole("button", { name: /Get AI Suggestions/i })).toBeDisabled();
   });
 
-  it("submit button is enabled when occasion is filled", () => {
+  it("submit button is enabled when weatherCondition is filled", () => {
     renderPage();
-    fillOccasion("Wedding");
+    fireEvent.change(screen.getByLabelText(/Weather condition/i), { target: { value: "Sunny" } });
     expect(screen.getByRole("button", { name: /Get AI Suggestions/i })).not.toBeDisabled();
   });
 
-  it("submit button is enabled when style preferences are filled", () => {
+  it("submit button remains disabled when only occasion is filled (weatherCondition required)", () => {
+    renderPage();
+    fireEvent.change(screen.getByLabelText(/Occasion/i), { target: { value: "Wedding" } });
+    expect(screen.getByRole("button", { name: /Get AI Suggestions/i })).toBeDisabled();
+  });
+
+  it("submit button remains disabled when only style preferences are filled", () => {
     renderPage();
     fireEvent.change(screen.getByLabelText(/Style preferences/i), { target: { value: "Boho" } });
-    expect(screen.getByRole("button", { name: /Get AI Suggestions/i })).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: /Get AI Suggestions/i })).toBeDisabled();
   });
 
-  it("submit button is enabled when product IDs are filled", () => {
+  it("submit button remains disabled for whitespace-only weatherCondition", () => {
     renderPage();
-    fireEvent.change(screen.getByLabelText(/Product IDs/i), { target: { value: "p1" } });
-    expect(screen.getByRole("button", { name: /Get AI Suggestions/i })).not.toBeDisabled();
+    fireEvent.change(screen.getByLabelText(/Weather condition/i), { target: { value: "   " } });
+    expect(screen.getByRole("button", { name: /Get AI Suggestions/i })).toBeDisabled();
+  });
+
+  it("includes weatherCondition in the exact request body", async () => {
+    const mutateAsync = vi.fn().mockResolvedValue([]);
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
+    renderPage();
+
+    fireEvent.change(screen.getByLabelText(/Weather condition/i), { target: { value: "Clear" } });
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ weatherCondition: "Clear" }),
+    ));
+  });
+
+  it("trims whitespace from weatherCondition before submitting", async () => {
+    const mutateAsync = vi.fn().mockResolvedValue([]);
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
+    renderPage();
+
+    fireEvent.change(screen.getByLabelText(/Weather condition/i), { target: { value: "  Rainy  " } });
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ weatherCondition: "Rainy" }),
+    ));
   });
 
   it("trims whitespace from occasion before submitting", async () => {
@@ -176,6 +208,7 @@ describe("form validation", () => {
     suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
     renderPage();
 
+    fillWeather("Sunny");
     fireEvent.change(screen.getByLabelText(/Occasion/i), { target: { value: "  Beach  " } });
     fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
 
@@ -189,7 +222,7 @@ describe("form validation", () => {
     suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
     renderPage();
 
-    fillOccasion();
+    fillWeather("Sunny");
     fireEvent.change(screen.getByLabelText(/Style preferences/i), {
       target: { value: "Casual, Boho, Casual" },
     });
@@ -205,7 +238,7 @@ describe("form validation", () => {
     suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
     renderPage();
 
-    fillOccasion();
+    fillWeather("Sunny");
     fireEvent.change(screen.getByLabelText(/Style preferences/i), {
       target: { value: "Casual, Boho" },
     });
@@ -216,17 +249,31 @@ describe("form validation", () => {
     ));
   });
 
-  it("sends null for stylePreferences when field is empty but occasion is set", async () => {
+  it("sends null for optional fields when only weatherCondition is set", async () => {
     const mutateAsync = vi.fn().mockResolvedValue([]);
     suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
     renderPage();
 
-    fillOccasion("Wedding");
+    fillWeather("Cold");
     fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
 
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ occasion: "Wedding", stylePreferences: null, productIds: null }),
+      expect.objectContaining({ weatherCondition: "Cold", occasion: null, stylePreferences: null, productIds: null }),
     ));
+  });
+
+  it("preserves weatherCondition in form after API error", async () => {
+    const mutateAsync = vi.fn().mockRejectedValue(new Error("API error"));
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
+    renderPage();
+
+    fireEvent.change(screen.getByLabelText(/Weather condition/i), { target: { value: "Hot" } });
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+
+    await waitFor(() => expect(screen.getByText(/API error/i)).toBeInTheDocument());
+
+    // Form input value must be preserved
+    expect(screen.getByLabelText(/Weather condition/i)).toHaveValue("Hot");
   });
 });
 
@@ -262,7 +309,7 @@ describe("empty state", () => {
     suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
     renderPage();
 
-    fillOccasion();
+    fillWeather("Sunny");
     fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
 
     await waitFor(() =>
@@ -281,7 +328,7 @@ describe("success state", () => {
     suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
     renderPage();
 
-    fillOccasion();
+    fillWeather("Sunny");
     fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
 
     await waitFor(() =>
@@ -304,7 +351,7 @@ describe("success state", () => {
     suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
     renderPage();
 
-    fillOccasion();
+    fillWeather("Sunny");
     fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
 
     await waitFor(() =>
@@ -323,7 +370,7 @@ describe("success state", () => {
 
     renderPage();
 
-    fillOccasion();
+    fillWeather("Sunny");
     fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /Save suggestion 1/i })).toBeInTheDocument(),
@@ -348,7 +395,7 @@ describe("success state", () => {
 
     renderPage();
 
-    fillOccasion();
+    fillWeather("Sunny");
     fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /Save suggestion 1/i })).toBeInTheDocument(),
@@ -373,7 +420,7 @@ describe("success state", () => {
 
     renderPage();
 
-    fillOccasion();
+    fillWeather("Sunny");
     fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /Save suggestion 1/i })).toBeInTheDocument(),
@@ -399,7 +446,7 @@ describe("save eligibility", () => {
     suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
     renderPage();
 
-    fillOccasion();
+    fillWeather("Sunny");
     fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
 
     await waitFor(() =>
@@ -414,7 +461,7 @@ describe("save eligibility", () => {
     suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
     renderPage();
 
-    fillOccasion();
+    fillWeather("Sunny");
     fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
 
     await waitFor(() =>
@@ -429,7 +476,7 @@ describe("save eligibility", () => {
     suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
     renderPage();
 
-    fillOccasion();
+    fillWeather("Sunny");
     fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
 
     await waitFor(() =>
@@ -448,7 +495,7 @@ describe("error state", () => {
     suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
     renderPage();
 
-    fillOccasion();
+    fillWeather("Sunny");
     fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
 
     await waitFor(() =>
@@ -461,7 +508,7 @@ describe("error state", () => {
     suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
     renderPage();
 
-    fillOccasion();
+    fillWeather("Sunny");
     fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
     await waitFor(() => expect(screen.getByText("Oops")).toBeInTheDocument());
 
@@ -478,7 +525,7 @@ describe("error state", () => {
 
     renderPage();
 
-    fillOccasion();
+    fillWeather("Sunny");
     fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /Save suggestion 1/i })).toBeInTheDocument(),
@@ -503,7 +550,7 @@ describe("error state", () => {
 
     renderPage();
 
-    fillOccasion();
+    fillWeather("Sunny");
     fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /Save suggestion 1/i })).toBeInTheDocument(),
@@ -533,7 +580,7 @@ describe("error state", () => {
 
     renderPage();
 
-    fillOccasion();
+    fillWeather("Sunny");
     fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /Save suggestion 1/i })).toBeInTheDocument(),

@@ -174,6 +174,7 @@ export interface AiSuggestion {
 }
 
 export interface GenerateSuggestionsPayload {
+  weatherCondition: string;
   occasion?: string | null;
   stylePreferences?: string[] | null;
   favoriteProductIds?: string[] | null;

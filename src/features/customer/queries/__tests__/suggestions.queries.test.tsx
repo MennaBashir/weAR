@@ -76,12 +76,12 @@ describe("useGenerateSuggestions", () => {
 
     let returned: AiSuggestion[] | undefined;
     await act(async () => {
-      returned = await result.current.mutateAsync({ occasion: "Beach" });
+      returned = await result.current.mutateAsync({ weatherCondition: "Sunny", occasion: "Beach" });
     });
 
     expect(returned).toHaveLength(1);
     expect(returned![0].suggestionId).toBe("s1");
-    expect(mockedSuggestionsApi.generateSuggestions).toHaveBeenCalledWith({ occasion: "Beach" });
+    expect(mockedSuggestionsApi.generateSuggestions).toHaveBeenCalledWith({ weatherCondition: "Sunny", occasion: "Beach" });
   });
 
   it("enters error state when API throws", async () => {
@@ -113,7 +113,7 @@ describe("useGenerateSuggestions", () => {
 
     let returned: AiSuggestion[] | undefined;
     await act(async () => {
-      returned = await result.current.mutateAsync({});
+      returned = await result.current.mutateAsync({ weatherCondition: "Cold" });
     });
 
     expect(returned).toHaveLength(0);
