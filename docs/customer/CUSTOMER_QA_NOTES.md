@@ -1,5 +1,36 @@
 # Customer Frontend QA Notes
 
+## Command 20 — Wardrobe Collections (2026-06-14)
+
+### Baseline before Command 20
+
+- `npm test` before Command 20: 48 files, 373 tests passed.
+
+### Command 20 implementation (2026-06-14)
+
+- Branch: `claude/vigilant-rubin-29ob7b`.
+- `npm ci` passed.
+- `npm run build` passed (chunk size warnings pre-existing).
+- `npm test` after Command 20: **49 files, 384 tests passed** (11 new test cases from api tests 1–19 + queries tests 20–30 + page tests 31–55 across 3 new test files).
+- `git diff --check` passed.
+- No merge conflicts.
+
+### Wardrobe Collections backend status
+
+- All 7 endpoints are **Swagger-only** (CONNECT tunnel to `https://vfr-backend.onrender.com` returns 403 Forbidden — same restriction as all previous commands).
+- No deployed runtime verification performed.
+- Update endpoint (PUT) uses PUT as default; method and success status unconfirmed — documented as blocked.
+- customerId sourced exclusively from authenticated state; never from request body.
+- Does NOT invalidate Favorites or Saved Outfits caches.
+
+### Route and nav added
+
+- Route: `/customer/wardrobe/collections` registered in `router.tsx`.
+- Route key `wardrobeCollections` added to `customerRoutes.ts`.
+- Navigation item: "Wardrobe" (FolderOpen icon) added between "AI Style" and "Favorites" in `CustomerLayout.tsx`.
+
+---
+
 ## Updated Swagger and local deployed verification (2026-06-14)
 
 ### Baseline

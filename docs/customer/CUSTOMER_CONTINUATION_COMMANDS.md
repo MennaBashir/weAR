@@ -196,12 +196,47 @@ Runtime-unconfirmed (documented as blockers):
 - Whether Favorites prerequisite applies to save.
 ```
 
-## Command 20 — Wardrobe Collections — P2
+## ~~Command 20 — Wardrobe Collections — P2~~ ✅ Complete
 
 ```text
-Create customer/wardrobe-collections from the latest approved continuation base.
+Implemented on branch claude/vigilant-rubin-29ob7b, base customer/wardrobe-collections.
 
-Implement only Swagger-confirmed list/create/rename/delete collection operations and list/add/remove collection items. Use authenticated Customer identity, typed adapters/query keys, loading/error/empty states, destructive confirmation and cache invalidation tests. Reuse product/Favorites/Outfits logic. Do not invent fields.
+Endpoints integrated (all Swagger-only — CONNECT tunnel 403):
+- GET /api/customers/{customerId}/wardrobe/collections — paginated list
+- POST /api/customers/{customerId}/wardrobe/collections — create (name required, trimmed)
+- PUT /api/customers/{customerId}/wardrobe/collections/{id} — update (BLOCKED: method/status unconfirmed)
+- DELETE /api/customers/{customerId}/wardrobe/collections/{id} — delete (204, cascade unconfirmed)
+- GET /api/customers/{customerId}/wardrobe/collections/{id}/items — paginated items
+- POST /api/customers/{customerId}/wardrobe/collections/{id}/items — add item (productId required)
+- DELETE /api/customers/{customerId}/wardrobe/collections/{id}/items/{itemId} — remove item (204)
+
+Key constraints enforced:
+- customerId ONLY from authenticated Customer state (never request body).
+- Does NOT invalidate Favorites or Saved Outfits caches.
+- 204 responses not JSON-parsed.
+- Update documented as blocked (PUT used as default; method and status unconfirmed).
+- WardrobeCollectionApiError preserves backend code and message.
+
+UI:
+- Loading/error/empty/populated states for both collections and items.
+- Create form (name required, description optional).
+- Delete with confirmation dialog.
+- Collection cards clickable to toggle items panel.
+- Items panel with loading/error/empty/populated states and remove confirmation.
+- Pagination for both collections and items.
+- "Wardrobe" nav item added (FolderOpen icon) between AI Style and Favorites.
+- Route: /customer/wardrobe/collections.
+
+Test files (3 new):
+- src/features/customer/api/__tests__/wardrobeCollections.api.test.ts (tests 1-19)
+- src/features/customer/queries/__tests__/wardrobeCollections.queries.test.tsx (tests 20-30)
+- src/features/customer/pages/__tests__/CustomerWardrobeCollectionsPage.test.tsx (tests 31-55)
+
+Checks:
+- npm ci: passed
+- npm run build: passed
+- npm test: 49 files, 384 tests passed (was 48 files, 373 tests)
+- git diff --check: passed
 ```
 
 ## Command 21 — Fit Feedback — P2/P3, blocked by real order data

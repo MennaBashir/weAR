@@ -55,14 +55,11 @@ Integrate Swagger-confirmed suggestion and save endpoints. Resolve model IDs thr
 - Exact request/response contracts are tested.
 - Ambiguous contracts remain blocked.
 
-## Stage 20 — Wardrobe Collections (P2)
+## ~~Stage 20 — Wardrobe Collections~~ ✅ Complete — Swagger-only
 
-Implement collections and item membership operations from Swagger.
+Collections and item membership operations implemented from Swagger. All 7 endpoints integrated. customerId from auth. Typed adapters, loading/error/empty/populated states, create form, delete confirmation, collection items view with pagination and remove confirmation. Does not invalidate Favorites or Saved Outfits. Update (PUT) documented as blocked pending runtime method/status confirmation.
 
-### Exit criteria
-
-- Typed adapters, UI states, confirmations and cache invalidation.
-- Existing Favorites/Outfits logic is reused.
+Route: `/customer/wardrobe/collections`. Nav: "Wardrobe". 3 new test files (tests 1–19 API, 20–30 queries, 31–55 page). 384 total tests passing.
 
 ## Stage 21 — Fit Feedback (P2/P3)
 

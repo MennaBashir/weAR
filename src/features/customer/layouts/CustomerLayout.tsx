@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
+  FolderOpen,
   Heart,
   Home,
   Layers,
@@ -31,6 +32,7 @@ const CUSTOMER_NAV_ITEMS = [
   { label: "History", to: CUSTOMER_ROUTES.tryOnHistory, icon: Sparkles },
   { label: "Outfits", to: CUSTOMER_ROUTES.outfits, icon: Layers },
   { label: "AI Style", to: CUSTOMER_ROUTES.aiSuggestions, icon: Wand2 },
+  { label: "Wardrobe", to: CUSTOMER_ROUTES.wardrobeCollections, icon: FolderOpen },
   { label: "Favorites", to: CUSTOMER_ROUTES.favorites, icon: Heart },
   { label: "Account", to: CUSTOMER_ROUTES.account, icon: User },
 ] as const;

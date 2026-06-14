@@ -7,6 +7,25 @@
 **Status of deployed tests:** CONNECT tunnel to `https://vfr-backend.onrender.com` returns 403 Forbidden from this execution environment. All endpoint entries below are **Swagger-only** unless explicitly marked **Verified deployed**.  
 **Source documents read:** CUSTOMER_BACKEND_CONTRACT_SNAPSHOT.md, CUSTOMER_CONTINUATION_COMMANDS.md, CUSTOMER_ENDPOINT_COVERAGE.md, CUSTOMER_QA_NOTES.md, CUSTOMER_API_REFERENCE.md, catalog.api.ts, outfits.api.ts, catalog.ts types.
 
+## Command 20 implementation notes (2026-06-14)
+
+Wardrobe Collections — all endpoints **Swagger-only**. CONNECT tunnel still 403 Forbidden; no deployed verification.
+
+**Implemented:**
+- `GET /api/customers/{customerId}/wardrobe/collections` — paginated, normalizes `WardrobeCollectionSummary[]`. Double-envelope unwrapping.
+- `POST /api/customers/{customerId}/wardrobe/collections` — name trimmed; description nullable; returns UUID string via `extractCreatedId`. `WardrobeCollectionApiError` on error.
+- `PUT /api/customers/{customerId}/wardrobe/collections/{id}` — name trimmed; 204 assumed; no body parsing. **BLOCKED: method (PUT vs PATCH) and success status (200 vs 204) unconfirmed.**
+- `DELETE /api/customers/{customerId}/wardrobe/collections/{id}` — 204; no body parsing. Cascade delete behavior unconfirmed.
+- `GET /api/customers/{customerId}/wardrobe/collections/{id}/items` — paginated, normalizes `WardrobeCollectionItem[]`. Handles `productImageUrl` (Swagger) or `primaryImageUrl` (alternative).
+- `POST /api/customers/{customerId}/wardrobe/collections/{id}/items` — `productId` required; returns item UUID or empty string. Duplicate behavior unconfirmed.
+- `DELETE /api/customers/{customerId}/wardrobe/collections/{id}/items/{itemId}` — 204; no body parsing.
+
+**customerId:** Always from authenticated Customer state. Never sent in request body.
+**Cache invalidation:** Collections list invalidated on create/update/delete. Item list and collection list invalidated on add/remove item. Favorites and Saved Outfits NOT invalidated.
+**Error handling:** `rethrowApiError` preserves backend `code` and `message`. Falls back to generic message when no structured error body.
+
+---
+
 ## Command 19 implementation notes (updated 2026-06-14)
 
 AI Outfit Suggestions — generate endpoint **runtime-verified** (two deployed tests, 2026-06-14). Save endpoint Swagger-only; save currently blocked by missing `suggestionId` and numeric `slotType` in all verified responses.

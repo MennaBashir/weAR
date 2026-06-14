@@ -78,6 +78,6 @@ Status is based on the current repository audit, supplied Figma PDF, Swagger and
 - Command 18: Avatar and Try-on contract alignment — complete.
 - Saved Outfits: list/create/delete complete; detail/update blocked by backend 500.
 - AI Outfit Suggestions (Command 19): complete — generate runtime-verified (2026-06-14); save Swagger-only (save blocked because deployed generate response contained no suggestionId). Adapter normalizes three response shapes (deployed direct-array, Swagger envelope, legacy direct-array). Fields: title→name, description→styleNotes, items→products, matchPercentage, styleTags, suggestionId: string|null. No synthetic ID. Save disabled when suggestionId null. INVALID_OUTFIT_ITEMS guidance with Favorites link; no auto-mutation.
-- Wardrobe Collections: planned Command 20.
+- Wardrobe Collections (Command 20): complete — Swagger-only (CONNECT tunnel 403; not deployed-verified). Adapter, query hooks, page and tests implemented. 7 endpoints integrated: list, create, update (PUT — method/status unconfirmed), delete, list items, add item, remove item. customerId from authenticated state only. 25 new tests (tests 1–55 across api/queries/page test files). Route: /customer/wardrobe/collections. Nav item: "Wardrobe". Update blocked pending runtime confirmation of method (PUT vs PATCH) and success status.
 - Fit Feedback: blocked/planned Command 21 (requires real order IDs).
 - Final release polish: Command 22.

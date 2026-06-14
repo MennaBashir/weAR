@@ -91,13 +91,13 @@ Toggle, list and check endpoints are **Verified UI used**. Saved Outfits uses ex
 
 | Endpoint | Status | Notes |
 |---|---|---|
-| `GET /api/customers/{customerId}/wardrobe/collections` | Not integrated | Command 20. Swagger-only. Standard paginated envelope expected. |
-| `POST /api/customers/{customerId}/wardrobe/collections` | Not integrated | Command 20. Swagger-only. `name` required; returns UUID string. |
-| `PUT/PATCH /api/customers/{customerId}/wardrobe/collections/{collectionId}` | Not integrated | Command 20. Swagger-only. Method (PUT vs PATCH) and success status (200 vs 204) unconfirmed. |
-| `DELETE /api/customers/{customerId}/wardrobe/collections/{collectionId}` | Not integrated | Command 20. Swagger-only. 204 expected; cascade delete behavior unconfirmed. |
-| `GET /api/customers/{customerId}/wardrobe/collections/{collectionId}/items` | Not integrated | Command 20. Swagger-only. Paginated; exact item shape unconfirmed. |
-| `POST /api/customers/{customerId}/wardrobe/collections/{collectionId}/items` | Not integrated | Command 20. Swagger-only. `productId` required; duplicate behavior unconfirmed. |
-| `DELETE /api/customers/{customerId}/wardrobe/collections/{collectionId}/items/{itemId}` | Not integrated | Command 20. Swagger-only. 204 expected. |
+| `GET /api/customers/{customerId}/wardrobe/collections` | Complete supported scope — Swagger-only | Command 20. Paginated envelope matching Outfits list shape. customerId from auth. |
+| `POST /api/customers/{customerId}/wardrobe/collections` | Complete supported scope — Swagger-only | Command 20. `name` required (trimmed). Returns UUID string in `data`. `WardrobeCollectionApiError` on error. |
+| `PUT /api/customers/{customerId}/wardrobe/collections/{collectionId}` | Complete supported scope — Swagger-only — **BLOCKED** | Command 20. Using PUT; method (PUT vs PATCH) and success status (200 vs 204) unconfirmed. Cannot runtime-verify (CONNECT 403). |
+| `DELETE /api/customers/{customerId}/wardrobe/collections/{collectionId}` | Complete supported scope — Swagger-only | Command 20. 204 expected; cascade delete unconfirmed. No body parsing. |
+| `GET /api/customers/{customerId}/wardrobe/collections/{collectionId}/items` | Complete supported scope — Swagger-only | Command 20. Paginated; normalizes `productImageUrl` or `primaryImageUrl`. |
+| `POST /api/customers/{customerId}/wardrobe/collections/{collectionId}/items` | Complete supported scope — Swagger-only | Command 20. `productId` required. Returns item UUID. Duplicate behavior unconfirmed. |
+| `DELETE /api/customers/{customerId}/wardrobe/collections/{collectionId}/items/{itemId}` | Complete supported scope — Swagger-only | Command 20. 204 expected; no body parsing. |
 
 ## Fit Feedback
 

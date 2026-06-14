@@ -64,15 +64,19 @@ The frontend implements list/create/delete and does not expose fake detail/edit 
 - Model ID resolution: `POST /api/catalog/products/by-model-ids` — adapter exists; called only when suggestion products have `modelId` without `productId`.
 - INVALID_OUTFIT_ITEMS: handled with explicit guidance and link to Favorites; no automatic Favorites mutation.
 
-## Wardrobe Collections (Swagger-only, Command 20)
+## Wardrobe Collections (Swagger-only, Command 20 — IMPLEMENTED)
 
-- List: `GET /api/customers/{customerId}/wardrobe/collections` — paginated envelope (same shape as Outfits).
-- Create: `POST /api/customers/{customerId}/wardrobe/collections` — `name` required; returns UUID string in `data`.
-- Update: `PUT/PATCH /api/customers/{customerId}/wardrobe/collections/{id}` — exact method and success status (200/204) unconfirmed.
-- Delete: `DELETE /api/customers/{customerId}/wardrobe/collections/{id}` — 204 expected; cascade behavior unconfirmed.
-- List items: `GET /api/customers/{customerId}/wardrobe/collections/{id}/items` — paginated; exact item shape unconfirmed.
-- Add item: `POST /api/customers/{customerId}/wardrobe/collections/{id}/items` — `productId` required; duplicate behavior unconfirmed.
-- Remove item: `DELETE /api/customers/{customerId}/wardrobe/collections/{id}/items/{itemId}` — 204 expected.
+All 7 endpoints integrated. Swagger-only; CONNECT tunnel 403 Forbidden; not deployed-verified.
+
+- List: `GET /api/customers/{customerId}/wardrobe/collections` — paginated envelope (same shape as Outfits). Implemented.
+- Create: `POST /api/customers/{customerId}/wardrobe/collections` — `name` required (trimmed); returns UUID string in `data`. `WardrobeCollectionApiError` on error. Implemented.
+- Update: `PUT /api/customers/{customerId}/wardrobe/collections/{id}` — using PUT; 204 assumed; name trimmed; no body parsing. **BLOCKED: method (PUT vs PATCH) and success status unconfirmed.** Implemented with PUT pending confirmation.
+- Delete: `DELETE /api/customers/{customerId}/wardrobe/collections/{id}` — 204 expected; no body parsing. Cascade behavior unconfirmed. Implemented.
+- List items: `GET /api/customers/{customerId}/wardrobe/collections/{id}/items` — paginated; normalizes `productImageUrl` (Swagger) or `primaryImageUrl`. Implemented.
+- Add item: `POST /api/customers/{customerId}/wardrobe/collections/{id}/items` — `productId` required; returns item UUID. Duplicate behavior unconfirmed. Implemented.
+- Remove item: `DELETE /api/customers/{customerId}/wardrobe/collections/{id}/items/{itemId}` — 204 expected; no body parsing. Implemented.
+- customerId: always from authenticated state; never in request body.
+- Cache: invalidates collections list on create/update/delete; invalidates item list + collections list on add/remove. Does NOT invalidate Favorites or Saved Outfits.
 
 ## Fit Feedback (Swagger-only, Command 21 — blocked)
 
