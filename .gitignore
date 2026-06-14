@@ -27,4 +27,3 @@ dist-ssr
 
 # Local backend contract audit artifacts
 outfit-api-audit/
-.claude/
