@@ -75,9 +75,9 @@ Status is based on the current repository audit, supplied Figma PDF, Swagger and
 ## Continuation status refresh (2026-06-14)
 
 - Commands 12–17: complete.
+- Command 18: Avatar and Try-on contract alignment — complete.
 - Saved Outfits: list/create/delete complete; detail/update blocked by backend 500.
-- Next P0: Avatar and Try-on contract alignment.
-- AI Outfit Suggestions: planned Command 19.
+- AI Outfit Suggestions (Command 19): complete — Swagger-derived, not deployed-verified. Generate and save adapters, full UI states, strict save eligibility, all-products-resolved gate, INVALID_OUTFIT_ITEMS guidance.
 - Wardrobe Collections: planned Command 20.
-- Fit Feedback: blocked/planned Command 21.
+- Fit Feedback: blocked/planned Command 21 (requires real order IDs).
 - Final release polish: Command 22.

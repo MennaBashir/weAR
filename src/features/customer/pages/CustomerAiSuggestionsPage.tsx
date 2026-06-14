@@ -1,7 +1,10 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import {
   AlertCircle,
   BookmarkPlus,
+  ExternalLink,
+  Heart,
   Loader2,
   Sparkles,
   Wand2,
@@ -9,12 +12,53 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { customerTheme } from "@/features/customer/styles/customerTheme";
+import { CUSTOMER_ROUTES } from "@/features/customer/routes/customerRoutes";
 import {
   useGenerateSuggestions,
   useSaveSuggestion,
 } from "@/features/customer/queries/suggestions.queries";
+import { SuggestionApiError } from "@/features/customer/api/suggestions.api";
 import type { AiSuggestion, AiSuggestionProduct, OutfitItem } from "@/features/customer/types/catalog";
 import { cn } from "@/lib/utils";
+
+// ---------------------------------------------------------------------------
+// Save eligibility
+// ---------------------------------------------------------------------------
+
+interface SaveEligibility {
+  canSave: boolean;
+  items: OutfitItem[] | null;
+  reason: string | null;
+}
+
+function getSaveEligibility(
+  suggestionId: string,
+  products: AiSuggestionProduct[],
+): SaveEligibility {
+  if (!suggestionId) {
+    return { canSave: false, items: null, reason: "Suggestion ID is missing — saving is unavailable." };
+  }
+  if (products.length === 0) {
+    return { canSave: false, items: null, reason: "No products in this suggestion — saving is unavailable." };
+  }
+  // All products must have a resolved productId
+  const unresolvedProduct = products.find((p) => !p.productId);
+  if (unresolvedProduct) {
+    return { canSave: false, items: null, reason: "Not all products could be resolved — saving is disabled." };
+  }
+  // All products must have a numeric slotType
+  const missingSlotType = products.find((p) => typeof p.slotType !== "number");
+  if (missingSlotType) {
+    return { canSave: false, items: null, reason: "Slot type is missing for some products — saving is disabled." };
+  }
+  // Build items from ALL products in original order
+  const items: OutfitItem[] = products.map((p, i) => ({
+    productId: p.productId as string,
+    slotType: p.slotType as number,
+    displayOrder: typeof p.displayOrder === "number" ? p.displayOrder : i,
+  }));
+  return { canSave: true, items, reason: null };
+}
 
 // ---------------------------------------------------------------------------
 // Product chip within a suggestion
@@ -69,16 +113,14 @@ function SuggestionCard({ suggestion, index }: SuggestionCardProps) {
   const saveMutation = useSaveSuggestion();
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [isInvalidItems, setIsInvalidItems] = useState(false);
+
+  const { canSave, items, reason } = getSaveEligibility(suggestion.suggestionId, suggestion.products);
 
   const handleSave = async () => {
+    if (!items) return;
     setSaveError(null);
-    const items: OutfitItem[] = suggestion.products
-      .filter((p) => p.productId)
-      .map((p, i) => ({
-        productId: p.productId as string,
-        slotType: p.slotType ?? i,
-        displayOrder: p.displayOrder ?? i,
-      }));
+    setIsInvalidItems(false);
 
     try {
       await saveMutation.mutateAsync({
@@ -89,13 +131,18 @@ function SuggestionCard({ suggestion, index }: SuggestionCardProps) {
       });
       setSaved(true);
     } catch (err) {
+      if (err instanceof SuggestionApiError && err.code === "INVALID_OUTFIT_ITEMS") {
+        setIsInvalidItems(true);
+        setSaveError(
+          err.message || "All products in this outfit must be saved to your Favorites first.",
+        );
+        return;
+      }
       setSaveError(
         err instanceof Error ? err.message : "Could not save suggestion. Please try again.",
       );
     }
   };
-
-  const canSave = suggestion.products.some((p) => p.productId) && !saved;
 
   return (
     <article
@@ -117,6 +164,9 @@ function SuggestionCard({ suggestion, index }: SuggestionCardProps) {
         {suggestion.occasion && (
           <p className="mt-0.5 text-xs text-[#A37E6B]">{suggestion.occasion}</p>
         )}
+        {suggestion.styleNotes && (
+          <p className="mt-1 text-xs italic text-[#6F625B]">{suggestion.styleNotes}</p>
+        )}
       </div>
 
       {suggestion.products.length > 0 ? (
@@ -131,19 +181,49 @@ function SuggestionCard({ suggestion, index }: SuggestionCardProps) {
         <p className="text-sm text-[#6F625B]">No products in this suggestion.</p>
       )}
 
-      {saveError && (
+      {/* Save error — INVALID_OUTFIT_ITEMS: explicit guidance, link to Favorites, no auto-mutation */}
+      {saveError && isInvalidItems && (
+        <div role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
+          <div className="flex items-start gap-2">
+            <Heart className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
+            <div>
+              <p className="font-medium text-amber-800">Products must be in Favorites first</p>
+              <p className="mt-1 text-amber-700">
+                Add the products in this suggestion to your Favorites, then try saving again. This
+                must be done manually — no automatic changes are made to your Favorites.
+              </p>
+              <Button asChild variant="outline" size="sm" className="mt-2 rounded-full">
+                <Link to={CUSTOMER_ROUTES.favorites}>
+                  <Heart className="mr-2 h-3 w-3" aria-hidden="true" />
+                  Go to Favorites
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Save error — generic */}
+      {saveError && !isInvalidItems && (
         <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
           {saveError}
         </p>
       )}
 
+      {/* Save success */}
       {saved ? (
-        <p
+        <div
           role="status"
-          className="rounded-lg bg-green-50 p-3 text-center text-sm text-green-800"
+          className="rounded-lg bg-green-50 p-3 text-center text-sm"
         >
-          Saved to your outfits.
-        </p>
+          <p className="text-green-800">Saved to your outfits.</p>
+          <Button asChild variant="ghost" size="sm" className="mt-1 rounded-full text-[#A37E6B]">
+            <Link to={CUSTOMER_ROUTES.outfits}>
+              <ExternalLink className="mr-1 h-3 w-3" aria-hidden="true" />
+              View Outfits
+            </Link>
+          </Button>
+        </div>
       ) : (
         <Button
           type="button"
@@ -167,10 +247,9 @@ function SuggestionCard({ suggestion, index }: SuggestionCardProps) {
         </Button>
       )}
 
-      {!canSave && !saved && (
-        <p className="text-center text-xs text-[#6F625B]">
-          Products could not be resolved — saving is unavailable for this suggestion.
-        </p>
+      {/* Ineligibility reason (not invalid-items — that has its own block above) */}
+      {!canSave && !saved && reason && !isInvalidItems && (
+        <p className="text-center text-xs text-[#6F625B]">{reason}</p>
       )}
     </article>
   );
@@ -197,6 +276,14 @@ interface GenerateFormProps {
   isPending: boolean;
 }
 
+function isFormEmpty(form: GenerateFormValues): boolean {
+  return (
+    !form.occasion.trim() &&
+    !form.stylePreferences.trim() &&
+    !form.productIds.trim()
+  );
+}
+
 function GenerateForm({ onGenerate, isPending }: GenerateFormProps) {
   const [form, setForm] = useState<GenerateFormValues>(INITIAL_FORM);
 
@@ -205,8 +292,11 @@ function GenerateForm({ onGenerate, isPending }: GenerateFormProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isFormEmpty(form)) return;
     onGenerate(form);
   };
+
+  const empty = isFormEmpty(form);
 
   return (
     <form
@@ -262,7 +352,8 @@ function GenerateForm({ onGenerate, isPending }: GenerateFormProps) {
       <Button
         type="submit"
         className="w-full rounded-full"
-        disabled={isPending}
+        disabled={isPending || empty}
+        aria-disabled={empty}
       >
         {isPending ? (
           <>
@@ -276,6 +367,12 @@ function GenerateForm({ onGenerate, isPending }: GenerateFormProps) {
           </>
         )}
       </Button>
+
+      {empty && (
+        <p className="text-center text-xs text-[#6F625B]">
+          Enter an occasion, style preferences, or product IDs to generate suggestions.
+        </p>
+      )}
     </form>
   );
 }
@@ -283,6 +380,11 @@ function GenerateForm({ onGenerate, isPending }: GenerateFormProps) {
 // ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
+
+function parseCsvField(raw: string): string[] | null {
+  const values = [...new Set(raw.split(",").map((s) => s.trim()).filter(Boolean))];
+  return values.length > 0 ? values : null;
+}
 
 export function CustomerAiSuggestionsPage() {
   const generateMutation = useGenerateSuggestions();
@@ -293,18 +395,11 @@ export function CustomerAiSuggestionsPage() {
     setGenerateError(null);
     setSuggestions(null);
 
-    const stylePreferences = values.stylePreferences
-      ? values.stylePreferences.split(",").map((s) => s.trim()).filter(Boolean)
-      : null;
-    const productIds = values.productIds
-      ? values.productIds.split(",").map((s) => s.trim()).filter(Boolean)
-      : null;
-
     try {
       const result = await generateMutation.mutateAsync({
-        occasion: values.occasion || null,
-        stylePreferences,
-        productIds,
+        occasion: values.occasion.trim() || null,
+        stylePreferences: parseCsvField(values.stylePreferences),
+        productIds: parseCsvField(values.productIds),
       });
       setSuggestions(result);
     } catch (err) {

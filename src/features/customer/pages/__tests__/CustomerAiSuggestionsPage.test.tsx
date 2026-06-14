@@ -11,6 +11,19 @@ const suggestionHooks = vi.hoisted(() => ({
 
 vi.mock("@/features/customer/queries/suggestions.queries", () => suggestionHooks);
 
+// SuggestionApiError used to test INVALID_OUTFIT_ITEMS guidance
+vi.mock("@/features/customer/api/suggestions.api", () => ({
+  SuggestionApiError: class SuggestionApiError extends Error {
+    constructor(
+      public readonly code: string,
+      message: string,
+    ) {
+      super(message);
+      this.name = "SuggestionApiError";
+    }
+  },
+}));
+
 const idleMutation = (overrides = {}) => ({
   mutateAsync: vi.fn(),
   isPending: false,
@@ -21,37 +34,71 @@ const idleMutation = (overrides = {}) => ({
   ...overrides,
 });
 
-const SAMPLE_SUGGESTIONS: AiSuggestion[] = [
-  {
-    suggestionId: "s1",
-    name: "Summer Casual",
-    styleCategory: "Casual",
-    occasion: "Beach",
-    products: [
-      {
-        productId: "p1",
-        modelId: null,
-        slotType: 0,
-        displayOrder: 0,
-        resolvedProduct: {
-          id: "p1",
-          name: "Linen Shirt",
-          price: 49.99,
-          currency: "$",
-          imageUrl: null,
-          primaryImageUrl: null,
-        },
+// Suggestion with all products fully resolved and with valid slotType
+const FULLY_RESOLVED_SUGGESTION: AiSuggestion = {
+  suggestionId: "s1",
+  name: "Summer Casual",
+  styleNotes: "Light layers",
+  styleCategory: "Casual",
+  occasion: "Beach",
+  products: [
+    {
+      productId: "p1",
+      modelId: null,
+      slotType: 0,
+      displayOrder: 0,
+      reasoning: "Great for summer",
+      resolvedProduct: {
+        id: "p1",
+        name: "Linen Shirt",
+        price: 49.99,
+        currency: "$",
+        imageUrl: null,
+        primaryImageUrl: null,
       },
-    ],
-  },
-  {
-    suggestionId: "s2",
-    name: null,
-    styleCategory: null,
-    occasion: null,
-    products: [],
-  },
-];
+    },
+    {
+      productId: "p2",
+      modelId: null,
+      slotType: 1,
+      displayOrder: 1,
+      reasoning: null,
+      resolvedProduct: {
+        id: "p2",
+        name: "White Trousers",
+        price: 79.99,
+        currency: "$",
+        imageUrl: null,
+        primaryImageUrl: null,
+      },
+    },
+  ],
+};
+
+// Suggestion with an unresolved product (no productId)
+const UNRESOLVED_PRODUCT_SUGGESTION: AiSuggestion = {
+  suggestionId: "s2",
+  name: "Partially Resolved",
+  styleNotes: null,
+  styleCategory: null,
+  occasion: null,
+  products: [
+    { productId: "p1", modelId: null, slotType: 0, displayOrder: 0, reasoning: null, resolvedProduct: null },
+    { productId: null, modelId: "m1", slotType: 1, displayOrder: 1, reasoning: null, resolvedProduct: null },
+  ],
+};
+
+// Suggestion where a product has no slotType
+const MISSING_SLOTTYPE_SUGGESTION: AiSuggestion = {
+  suggestionId: "s3",
+  name: "Missing Slot",
+  styleNotes: null,
+  styleCategory: null,
+  occasion: null,
+  products: [
+    { productId: "p1", modelId: null, slotType: null, displayOrder: 0, reasoning: null, resolvedProduct: null },
+  ],
+};
 
 function renderPage() {
   return render(
@@ -61,251 +108,444 @@ function renderPage() {
   );
 }
 
+// Helper: fill at least one input so the button is enabled
+function fillOccasion(value = "Beach") {
+  fireEvent.change(screen.getByLabelText(/Occasion/i), { target: { value } });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation());
   suggestionHooks.useSaveSuggestion.mockReturnValue(idleMutation());
 });
 
-describe("CustomerAiSuggestionsPage", () => {
-  describe("initial render", () => {
-    it("renders page heading", () => {
-      renderPage();
-      expect(screen.getByRole("heading", { name: /AI Outfit Suggestions/i })).toBeInTheDocument();
-    });
+// ---------------------------------------------------------------------------
+// Initial render
+// ---------------------------------------------------------------------------
 
-    it("renders the generate form", () => {
-      renderPage();
-      expect(screen.getByRole("form", { name: /Generate AI outfit suggestions/i })).toBeInTheDocument();
-      expect(screen.getByLabelText(/Occasion/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/Style preferences/i)).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /Get AI Suggestions/i })).toBeInTheDocument();
-    });
-
-    it("does not show suggestions before generating", () => {
-      renderPage();
-      expect(screen.queryByText(/suggestion generated/i)).not.toBeInTheDocument();
-      expect(screen.queryByText(/No suggestions found/i)).not.toBeInTheDocument();
-    });
+describe("initial render", () => {
+  it("renders page heading", () => {
+    renderPage();
+    expect(screen.getByRole("heading", { name: /AI Outfit Suggestions/i })).toBeInTheDocument();
   });
 
-  describe("loading state", () => {
-    it("shows loading indicator while generating", () => {
-      suggestionHooks.useGenerateSuggestions.mockReturnValue(
-        idleMutation({ isPending: true }),
-      );
-      renderPage();
-      expect(screen.getByLabelText(/Generating AI outfit suggestions/i)).toBeInTheDocument();
-    });
-
-    it("disables submit button while pending", () => {
-      suggestionHooks.useGenerateSuggestions.mockReturnValue(
-        idleMutation({ isPending: true }),
-      );
-      renderPage();
-      expect(screen.getByRole("button", { name: /Generating suggestions/i })).toBeDisabled();
-    });
+  it("renders the generate form", () => {
+    renderPage();
+    expect(screen.getByRole("form", { name: /Generate AI outfit suggestions/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Occasion/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Style preferences/i)).toBeInTheDocument();
   });
 
-  describe("empty state", () => {
-    it("shows empty state message after generating with no results", async () => {
-      const mutateAsync = vi.fn().mockResolvedValue([]);
-      suggestionHooks.useGenerateSuggestions.mockReturnValue(
-        idleMutation({ mutateAsync }),
-      );
-      renderPage();
+  it("does not show suggestions before generating", () => {
+    renderPage();
+    expect(screen.queryByText(/suggestion generated/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/No suggestions found/i)).not.toBeInTheDocument();
+  });
+});
 
-      fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+// ---------------------------------------------------------------------------
+// Form validation — empty guard
+// ---------------------------------------------------------------------------
 
-      await waitFor(() =>
-        expect(screen.getByText(/No suggestions found/i)).toBeInTheDocument(),
-      );
-    });
+describe("form validation", () => {
+  it("submit button is disabled when all inputs are empty", () => {
+    renderPage();
+    expect(screen.getByRole("button", { name: /Get AI Suggestions/i })).toBeDisabled();
   });
 
-  describe("success state", () => {
-    it("renders suggestion cards after successful generation", async () => {
-      const mutateAsync = vi.fn().mockResolvedValue(SAMPLE_SUGGESTIONS);
-      suggestionHooks.useGenerateSuggestions.mockReturnValue(
-        idleMutation({ mutateAsync }),
-      );
-      renderPage();
-
-      fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
-
-      await waitFor(() =>
-        expect(screen.getByText(/2 suggestions generated/i)).toBeInTheDocument(),
-      );
-
-      expect(screen.getByText("Summer Casual")).toBeInTheDocument();
-      expect(screen.getByText("Linen Shirt")).toBeInTheDocument();
-    });
-
-    it("shows save button for suggestions with resolvable products", async () => {
-      const mutateAsync = vi.fn().mockResolvedValue([SAMPLE_SUGGESTIONS[0]]);
-      suggestionHooks.useGenerateSuggestions.mockReturnValue(
-        idleMutation({ mutateAsync }),
-      );
-      renderPage();
-
-      fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
-
-      await waitFor(() =>
-        expect(screen.getByRole("button", { name: /Save suggestion 1/i })).toBeInTheDocument(),
-      );
-    });
-
-    it("saves a suggestion and shows confirmation", async () => {
-      const generateMutateAsync = vi.fn().mockResolvedValue([SAMPLE_SUGGESTIONS[0]]);
-      const saveMutateAsync = vi.fn().mockResolvedValue("saved-uuid");
-
-      suggestionHooks.useGenerateSuggestions.mockReturnValue(
-        idleMutation({ mutateAsync: generateMutateAsync }),
-      );
-      suggestionHooks.useSaveSuggestion.mockReturnValue(
-        idleMutation({ mutateAsync: saveMutateAsync }),
-      );
-
-      renderPage();
-
-      fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
-      await waitFor(() =>
-        expect(screen.getByRole("button", { name: /Save suggestion 1/i })).toBeInTheDocument(),
-      );
-
-      fireEvent.click(screen.getByRole("button", { name: /Save suggestion 1/i }));
-
-      await waitFor(() =>
-        expect(screen.getByText(/Saved to your outfits/i)).toBeInTheDocument(),
-      );
-    });
-
-    it("does not fabricate — only shows what the API returned", async () => {
-      const emptySuggestion: AiSuggestion = {
-        suggestionId: "s-empty",
-        name: null,
-        styleCategory: null,
-        occasion: null,
-        products: [],
-      };
-      const mutateAsync = vi.fn().mockResolvedValue([emptySuggestion]);
-      suggestionHooks.useGenerateSuggestions.mockReturnValue(
-        idleMutation({ mutateAsync }),
-      );
-      renderPage();
-
-      fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
-
-      await waitFor(() =>
-        expect(screen.getByText(/1 suggestion generated/i)).toBeInTheDocument(),
-      );
-
-      expect(screen.getByText(/No products in this suggestion/i)).toBeInTheDocument();
-    });
+  it("submit button is enabled when occasion is filled", () => {
+    renderPage();
+    fillOccasion("Wedding");
+    expect(screen.getByRole("button", { name: /Get AI Suggestions/i })).not.toBeDisabled();
   });
 
-  describe("error state", () => {
-    it("shows error message when generation fails", async () => {
-      const mutateAsync = vi.fn().mockRejectedValue(new Error("API unavailable"));
-      suggestionHooks.useGenerateSuggestions.mockReturnValue(
-        idleMutation({ mutateAsync }),
-      );
-      renderPage();
-
-      fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
-
-      await waitFor(() =>
-        expect(screen.getByText("API unavailable")).toBeInTheDocument(),
-      );
-    });
-
-    it("shows save error when save fails", async () => {
-      const generateMutateAsync = vi.fn().mockResolvedValue([SAMPLE_SUGGESTIONS[0]]);
-      const saveMutateAsync = vi.fn().mockRejectedValue(new Error("Save failed"));
-
-      suggestionHooks.useGenerateSuggestions.mockReturnValue(
-        idleMutation({ mutateAsync: generateMutateAsync }),
-      );
-      suggestionHooks.useSaveSuggestion.mockReturnValue(
-        idleMutation({ mutateAsync: saveMutateAsync }),
-      );
-
-      renderPage();
-
-      fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
-      await waitFor(() =>
-        expect(screen.getByRole("button", { name: /Save suggestion 1/i })).toBeInTheDocument(),
-      );
-
-      fireEvent.click(screen.getByRole("button", { name: /Save suggestion 1/i }));
-
-      await waitFor(() =>
-        expect(screen.getByText("Save failed")).toBeInTheDocument(),
-      );
-    });
-
-    it("allows dismissing the generation error", async () => {
-      const mutateAsync = vi.fn().mockRejectedValue(new Error("Oops"));
-      suggestionHooks.useGenerateSuggestions.mockReturnValue(
-        idleMutation({ mutateAsync }),
-      );
-      renderPage();
-
-      fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
-      await waitFor(() => expect(screen.getByText("Oops")).toBeInTheDocument());
-
-      fireEvent.click(screen.getByRole("button", { name: /Dismiss/i }));
-      expect(screen.queryByText("Oops")).not.toBeInTheDocument();
-    });
+  it("submit button is enabled when style preferences are filled", () => {
+    renderPage();
+    fireEvent.change(screen.getByLabelText(/Style preferences/i), { target: { value: "Boho" } });
+    expect(screen.getByRole("button", { name: /Get AI Suggestions/i })).not.toBeDisabled();
   });
 
-  describe("form input handling", () => {
-    it("passes occasion value to generate mutation", async () => {
-      const mutateAsync = vi.fn().mockResolvedValue([]);
-      suggestionHooks.useGenerateSuggestions.mockReturnValue(
-        idleMutation({ mutateAsync }),
-      );
-      renderPage();
+  it("submit button is enabled when product IDs are filled", () => {
+    renderPage();
+    fireEvent.change(screen.getByLabelText(/Product IDs/i), { target: { value: "p1" } });
+    expect(screen.getByRole("button", { name: /Get AI Suggestions/i })).not.toBeDisabled();
+  });
 
-      fireEvent.change(screen.getByLabelText(/Occasion/i), {
-        target: { value: "Wedding" },
-      });
-      fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+  it("trims whitespace from occasion before submitting", async () => {
+    const mutateAsync = vi.fn().mockResolvedValue([]);
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
+    renderPage();
 
-      await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith(
-        expect.objectContaining({ occasion: "Wedding" }),
-      ));
+    fireEvent.change(screen.getByLabelText(/Occasion/i), { target: { value: "  Beach  " } });
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ occasion: "Beach" }),
+    ));
+  });
+
+  it("deduplicates style preferences before submitting", async () => {
+    const mutateAsync = vi.fn().mockResolvedValue([]);
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
+    renderPage();
+
+    fillOccasion();
+    fireEvent.change(screen.getByLabelText(/Style preferences/i), {
+      target: { value: "Casual, Boho, Casual" },
     });
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
 
-    it("passes style preferences as array to generate mutation", async () => {
-      const mutateAsync = vi.fn().mockResolvedValue([]);
-      suggestionHooks.useGenerateSuggestions.mockReturnValue(
-        idleMutation({ mutateAsync }),
-      );
-      renderPage();
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ stylePreferences: ["Casual", "Boho"] }),
+    ));
+  });
 
-      fireEvent.change(screen.getByLabelText(/Style preferences/i), {
-        target: { value: "Casual, Boho" },
-      });
-      fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+  it("passes style preferences as trimmed unique array", async () => {
+    const mutateAsync = vi.fn().mockResolvedValue([]);
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
+    renderPage();
 
-      await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith(
-        expect.objectContaining({ stylePreferences: ["Casual", "Boho"] }),
-      ));
+    fillOccasion();
+    fireEvent.change(screen.getByLabelText(/Style preferences/i), {
+      target: { value: "Casual, Boho" },
     });
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
 
-    it("sends null for empty optional fields", async () => {
-      const mutateAsync = vi.fn().mockResolvedValue([]);
-      suggestionHooks.useGenerateSuggestions.mockReturnValue(
-        idleMutation({ mutateAsync }),
-      );
-      renderPage();
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ stylePreferences: ["Casual", "Boho"] }),
+    ));
+  });
 
-      fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+  it("sends null for stylePreferences when field is empty but occasion is set", async () => {
+    const mutateAsync = vi.fn().mockResolvedValue([]);
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
+    renderPage();
 
-      await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith(
-        expect.objectContaining({ occasion: null, stylePreferences: null }),
-      ));
-    });
+    fillOccasion("Wedding");
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ occasion: "Wedding", stylePreferences: null, productIds: null }),
+    ));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Loading state
+// ---------------------------------------------------------------------------
+
+describe("loading state", () => {
+  it("shows loading indicator while generating", () => {
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(
+      idleMutation({ isPending: true }),
+    );
+    renderPage();
+    expect(screen.getByLabelText(/Generating AI outfit suggestions/i)).toBeInTheDocument();
+  });
+
+  it("disables submit button while pending", () => {
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(
+      idleMutation({ isPending: true }),
+    );
+    renderPage();
+    expect(screen.getByRole("button", { name: /Generating suggestions/i })).toBeDisabled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Empty state
+// ---------------------------------------------------------------------------
+
+describe("empty state", () => {
+  it("shows empty state message after generating with no results", async () => {
+    const mutateAsync = vi.fn().mockResolvedValue([]);
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
+    renderPage();
+
+    fillOccasion();
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/No suggestions found/i)).toBeInTheDocument(),
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Success state
+// ---------------------------------------------------------------------------
+
+describe("success state", () => {
+  it("renders suggestion cards after successful generation", async () => {
+    const mutateAsync = vi.fn().mockResolvedValue([FULLY_RESOLVED_SUGGESTION]);
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
+    renderPage();
+
+    fillOccasion();
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/1 suggestion generated/i)).toBeInTheDocument(),
+    );
+    expect(screen.getByText("Summer Casual")).toBeInTheDocument();
+    expect(screen.getByText("Linen Shirt")).toBeInTheDocument();
+  });
+
+  it("does not fabricate — only shows what the API returned", async () => {
+    const emptySuggestion: AiSuggestion = {
+      suggestionId: "s-empty",
+      name: null,
+      styleNotes: null,
+      styleCategory: null,
+      occasion: null,
+      products: [],
+    };
+    const mutateAsync = vi.fn().mockResolvedValue([emptySuggestion]);
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
+    renderPage();
+
+    fillOccasion();
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/1 suggestion generated/i)).toBeInTheDocument(),
+    );
+    // "No products in this suggestion." appears in the product list; the reason may also appear
+    expect(screen.getAllByText(/No products in this suggestion/i).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("saves a suggestion and shows confirmation with link to outfits", async () => {
+    const generateMutateAsync = vi.fn().mockResolvedValue([FULLY_RESOLVED_SUGGESTION]);
+    const saveMutateAsync = vi.fn().mockResolvedValue("saved-uuid");
+
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync: generateMutateAsync }));
+    suggestionHooks.useSaveSuggestion.mockReturnValue(idleMutation({ mutateAsync: saveMutateAsync }));
+
+    renderPage();
+
+    fillOccasion();
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Save suggestion 1/i })).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Save suggestion 1/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/Saved to your outfits/i)).toBeInTheDocument(),
+    );
+
+    // Link to outfits must be present
+    expect(screen.getByRole("link", { name: /View Outfits/i })).toBeInTheDocument();
+  });
+
+  it("save sends all products in original order", async () => {
+    const generateMutateAsync = vi.fn().mockResolvedValue([FULLY_RESOLVED_SUGGESTION]);
+    const saveMutateAsync = vi.fn().mockResolvedValue("saved-uuid");
+
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync: generateMutateAsync }));
+    suggestionHooks.useSaveSuggestion.mockReturnValue(idleMutation({ mutateAsync: saveMutateAsync }));
+
+    renderPage();
+
+    fillOccasion();
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Save suggestion 1/i })).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Save suggestion 1/i }));
+
+    await waitFor(() => expect(saveMutateAsync).toHaveBeenCalled());
+    const payload = saveMutateAsync.mock.calls[0][0];
+    // Must include ALL products in original order
+    expect(payload.items).toHaveLength(2);
+    expect(payload.items[0].productId).toBe("p1");
+    expect(payload.items[1].productId).toBe("p2");
+  });
+
+  it("save uses displayOrder from backend when valid", async () => {
+    const generateMutateAsync = vi.fn().mockResolvedValue([FULLY_RESOLVED_SUGGESTION]);
+    const saveMutateAsync = vi.fn().mockResolvedValue("saved-uuid");
+
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync: generateMutateAsync }));
+    suggestionHooks.useSaveSuggestion.mockReturnValue(idleMutation({ mutateAsync: saveMutateAsync }));
+
+    renderPage();
+
+    fillOccasion();
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Save suggestion 1/i })).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Save suggestion 1/i }));
+
+    await waitFor(() => expect(saveMutateAsync).toHaveBeenCalled());
+    const payload = saveMutateAsync.mock.calls[0][0];
+    // displayOrder 0 and 1 come from the suggestion products
+    expect(payload.items[0].displayOrder).toBe(0);
+    expect(payload.items[1].displayOrder).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Save eligibility
+// ---------------------------------------------------------------------------
+
+describe("save eligibility", () => {
+  it("save button is disabled when a product has no productId (unresolved)", async () => {
+    const mutateAsync = vi.fn().mockResolvedValue([UNRESOLVED_PRODUCT_SUGGESTION]);
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
+    renderPage();
+
+    fillOccasion();
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Save suggestion 1/i })).toBeInTheDocument(),
+    );
+
+    expect(screen.getByRole("button", { name: /Save suggestion 1/i })).toBeDisabled();
+  });
+
+  it("save button is disabled when a product has no slotType", async () => {
+    const mutateAsync = vi.fn().mockResolvedValue([MISSING_SLOTTYPE_SUGGESTION]);
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
+    renderPage();
+
+    fillOccasion();
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Save suggestion 1/i })).toBeInTheDocument(),
+    );
+
+    expect(screen.getByRole("button", { name: /Save suggestion 1/i })).toBeDisabled();
+  });
+
+  it("save button is enabled when all products are resolved with valid slotType", async () => {
+    const mutateAsync = vi.fn().mockResolvedValue([FULLY_RESOLVED_SUGGESTION]);
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
+    renderPage();
+
+    fillOccasion();
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Save suggestion 1/i })).not.toBeDisabled(),
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Error states
+// ---------------------------------------------------------------------------
+
+describe("error state", () => {
+  it("shows error message when generation fails", async () => {
+    const mutateAsync = vi.fn().mockRejectedValue(new Error("API unavailable"));
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
+    renderPage();
+
+    fillOccasion();
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText("API unavailable")).toBeInTheDocument(),
+    );
+  });
+
+  it("allows dismissing the generation error", async () => {
+    const mutateAsync = vi.fn().mockRejectedValue(new Error("Oops"));
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync }));
+    renderPage();
+
+    fillOccasion();
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+    await waitFor(() => expect(screen.getByText("Oops")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: /Dismiss/i }));
+    expect(screen.queryByText("Oops")).not.toBeInTheDocument();
+  });
+
+  it("shows generic save error for non-INVALID_OUTFIT_ITEMS failures", async () => {
+    const generateMutateAsync = vi.fn().mockResolvedValue([FULLY_RESOLVED_SUGGESTION]);
+    const saveMutateAsync = vi.fn().mockRejectedValue(new Error("Save failed"));
+
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync: generateMutateAsync }));
+    suggestionHooks.useSaveSuggestion.mockReturnValue(idleMutation({ mutateAsync: saveMutateAsync }));
+
+    renderPage();
+
+    fillOccasion();
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Save suggestion 1/i })).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Save suggestion 1/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText("Save failed")).toBeInTheDocument(),
+    );
+  });
+
+  it("shows INVALID_OUTFIT_ITEMS guidance with link to Favorites", async () => {
+    const { SuggestionApiError } = await import("@/features/customer/api/suggestions.api");
+    const generateMutateAsync = vi.fn().mockResolvedValue([FULLY_RESOLVED_SUGGESTION]);
+    const saveMutateAsync = vi.fn().mockRejectedValue(
+      new SuggestionApiError("INVALID_OUTFIT_ITEMS", "Items must be favorites"),
+    );
+
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync: generateMutateAsync }));
+    suggestionHooks.useSaveSuggestion.mockReturnValue(idleMutation({ mutateAsync: saveMutateAsync }));
+
+    renderPage();
+
+    fillOccasion();
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Save suggestion 1/i })).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Save suggestion 1/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/Products must be in Favorites first/i)).toBeInTheDocument(),
+    );
+
+    expect(screen.getByRole("link", { name: /Go to Favorites/i })).toBeInTheDocument();
+    // No automatic mutation — save does not call Favorites toggle
+  });
+
+  it("does not auto-mutate Favorites on INVALID_OUTFIT_ITEMS", async () => {
+    const { SuggestionApiError } = await import("@/features/customer/api/suggestions.api");
+    const generateMutateAsync = vi.fn().mockResolvedValue([FULLY_RESOLVED_SUGGESTION]);
+    const saveMutateAsync = vi.fn().mockRejectedValue(
+      new SuggestionApiError("INVALID_OUTFIT_ITEMS", "Items must be favorites"),
+    );
+
+    // If auto-mutation were implemented it would call a favorites toggle hook.
+    // The page must not call any such hook on INVALID_OUTFIT_ITEMS.
+    suggestionHooks.useGenerateSuggestions.mockReturnValue(idleMutation({ mutateAsync: generateMutateAsync }));
+    suggestionHooks.useSaveSuggestion.mockReturnValue(idleMutation({ mutateAsync: saveMutateAsync }));
+
+    renderPage();
+
+    fillOccasion();
+    fireEvent.click(screen.getByRole("button", { name: /Get AI Suggestions/i }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Save suggestion 1/i })).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Save suggestion 1/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/Products must be in Favorites first/i)).toBeInTheDocument(),
+    );
+
+    // Only the save mutation was called — no favorites mutation hook exists in the page
+    expect(saveMutateAsync).toHaveBeenCalledTimes(1);
   });
 });

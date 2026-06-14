@@ -5,7 +5,7 @@
 ### Baseline
 
 - `npm ci`, lint, build and diff check passed.
-- `npm test`: 43 files, 238 tests passed.
+- `npm test` before Command 19: 43 files, 241 tests passed.
 
 ### Saved Outfits local deployed verification
 
@@ -89,6 +89,72 @@ Current limitations:
 - Outfits list is invalidated after create and after delete.
 - Favorites queries are invalidated when favorite toggle is performed from within the outfits flow.
 - All 42 new outfit tests pass (8 API adapter, 16 query hook, 18 page UI).
+
+## Command 19 AI Outfit Suggestions (2026-06-14)
+
+### Implementation basis
+
+Swagger-only — not deployed-verified (CONNECT tunnel returns 403 from this environment).
+
+### Response shapes supported
+
+| Shape | Description |
+|---|---|
+| `{ success: true, data: { suggestions: [...] } }` | Documented Swagger envelope (primary) |
+| `{ success: true, data: [...] }` | Legacy/direct-array compatibility |
+
+Field aliases normalized:
+- `id` or `suggestionId` → `suggestionId`
+- `outfitName` or `name` → `name`
+- `styleNotes` → `styleNotes`
+- `styleCategory` → `styleCategory` when present
+- `products[].reasoning` → `reasoning`
+
+### Save response validation
+
+- Accepted: wrapped `{ data: "uuid" }` or bare string.
+- Rejected with `SuggestionApiError("INVALID_SAVE_RESPONSE", ...)`: missing data, object data, empty string.
+- `String(raw)` not used — invalid response throws rather than coercing.
+
+### Save eligibility rule
+
+Save is disabled unless all of the following are true:
+- `suggestionId` present
+- At least one product in suggestion
+- Every product has a resolved `productId`
+- Every product has a numeric `slotType`
+
+Partial-outfit save (filtering unresolved products) is explicitly not implemented. If any product is unresolved or missing `slotType`, save is disabled with a clear message.
+
+Items are built from ALL products in original array order using:
+- `displayOrder` from backend when valid (numeric)
+- Original array index otherwise (for `displayOrder` only; `slotType` from backend always used, never substituted with index)
+
+### INVALID_OUTFIT_ITEMS handling
+
+When the backend returns `INVALID_OUTFIT_ITEMS` on save:
+- Explicit guidance is shown: "Products must be in Favorites first."
+- Link to `/customer/favorites` is provided.
+- No automatic Favorites mutation is performed.
+
+### Generate form constraints
+
+- Submit disabled when all inputs (occasion, stylePreferences, productIds) are empty after trim.
+- Empty body not submitted to backend.
+- stylePreferences and productIds trimmed and deduplicated before sending.
+- Form values preserved after generation failure.
+
+### Unconfirmed (documented, not guessed)
+
+- Whether any generate request field is required by the backend.
+- Whether the Favorites prerequisite applies to save (INVALID_OUTFIT_ITEMS possible).
+- `suggestionId` relationship to generate response (frontend sends the ID from the generate response).
+
+### Test baseline after Command 19
+
+`npm test`: 46 files, 294 tests passed.
+
+---
 
 ## Wardrobe Contract Audit (2026-06-13)
 

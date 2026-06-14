@@ -160,12 +160,14 @@ export interface AiSuggestionProduct {
   modelId?: string | null;
   slotType?: number | null;
   displayOrder?: number | null;
+  reasoning?: string | null;
   resolvedProduct?: CustomerProduct | null;
 }
 
 export interface AiSuggestion {
   suggestionId: string;
   name?: string | null;
+  styleNotes?: string | null;
   styleCategory?: string | null;
   occasion?: string | null;
   products: AiSuggestionProduct[];

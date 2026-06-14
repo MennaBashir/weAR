@@ -49,12 +49,12 @@ Confirmed defects:
 
 The frontend implements list/create/delete and does not expose fake detail/edit behavior.
 
-## AI Outfit Suggestions (Swagger-only, Command 19)
+## AI Outfit Suggestions (Command 19 — Swagger-only, implemented)
 
-- Generate: `POST /api/customer/wardrobe/suggestions` — body fields (occasion, stylePreferences, favoriteProductIds, modelIds, productIds) all optional/nullable; response contains suggestions array with products per suggestion.
-- Save: `POST /api/customer/wardrobe/suggestions/save` — body requires `suggestionId` (uuid), optional `name`/`styleCategory`, and `items[]` with `productId`/`slotType`/`displayOrder`; expected 201 with UUID string in `data`.
-- Model ID resolution: `POST /api/catalog/products/by-model-ids` — adapter already exists; call only when suggestion response products contain `modelId` without `productId`.
-- Unconfirmed: whether any request field is required; whether Favorites prerequisite applies to save.
+- Generate: `POST /api/customer/wardrobe/suggestions` — all body fields optional/nullable. Adapter supports documented `{ data: { suggestions: [...] } }` envelope and legacy `{ data: [...] }` direct-array shape. Field aliases: `id`/`suggestionId` → `suggestionId`; `outfitName`/`name` → `name`; `styleNotes` and `products[].reasoning` preserved. Submit guarded in UI when all inputs empty.
+- Save: `POST /api/customer/wardrobe/suggestions/save` — requires `suggestionId`, `items[]` with `productId`/`slotType`/`displayOrder`; 201 with UUID string in `data`. Strict response validation: only non-empty string accepted; throws `SuggestionApiError` otherwise. All products must be resolved (productId present, slotType numeric) before save is permitted — partial save not allowed.
+- Model ID resolution: `POST /api/catalog/products/by-model-ids` — adapter exists; called only when suggestion products have `modelId` without `productId`.
+- Unconfirmed: whether any generate field is required by the backend; whether Favorites prerequisite (INVALID_OUTFIT_ITEMS) applies to save. INVALID_OUTFIT_ITEMS handled with explicit guidance and link to Favorites; no automatic Favorites mutation.
 
 ## Wardrobe Collections (Swagger-only, Command 20)
 

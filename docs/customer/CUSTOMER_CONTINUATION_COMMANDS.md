@@ -149,17 +149,38 @@ git diff --check
 Create a PR to customer/final-qa and stop after the report.
 ```
 
-## Command 19 — AI Outfit Suggestions and saving — P1/P2
+## Command 19 — AI Outfit Suggestions and saving — P1/P2 — COMPLETE
 
 ```text
-Create customer/ai-outfit-suggestions from the latest approved continuation base.
+Implemented on branch claude/tender-goodall-hv68c3, PR #24, base customer/ai-outfit-suggestions.
 
-Use only Swagger-confirmed endpoints:
+Endpoints integrated (Swagger-only — not deployed-verified):
 - POST /api/customer/wardrobe/suggestions
 - POST /api/customer/wardrobe/suggestions/save
-- POST /api/catalog/products/by-model-ids only when model IDs require resolution
+- POST /api/catalog/products/by-model-ids (conditional — only when modelId present without productId)
 
-Derive Customer identity from auth. Reuse Favorites/catalog primitives. Implement loading, error, empty and success states. Never fabricate AI output or save success. If the schema is ambiguous, document the blocker instead of guessing. Add adapter, normalization, query and page tests. Run full checks and create a PR.
+Response normalization:
+- Supports documented data.suggestions envelope and legacy direct-array shape.
+- Aliases: id/suggestionId → suggestionId; outfitName/name → name.
+- styleNotes and products[].reasoning preserved.
+
+Save constraints enforced:
+- All products must have resolved productId and numeric slotType.
+- Partial-outfit save not permitted.
+- INVALID_OUTFIT_ITEMS handled with explicit guidance and link to Favorites; no auto-mutation.
+- Strict save response: only non-empty string accepted; throws SuggestionApiError otherwise.
+
+UI:
+- Generate disabled when all inputs empty; trim and deduplicate inputs.
+- Loading, error, empty, success states.
+- Link to /customer/outfits after save success.
+- Form values preserved on generation failure.
+
+Tests: 46 files, 294 tests after Command 19 (before Command 19 baseline: 43 files, 241 tests).
+
+Unconfirmed (runtime-unconfirmed, documented as blockers):
+- Whether any generate field is required.
+- Whether Favorites prerequisite applies to save.
 ```
 
 ## Command 20 — Wardrobe Collections — P2

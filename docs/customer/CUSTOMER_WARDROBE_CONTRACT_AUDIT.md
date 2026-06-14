@@ -2,10 +2,44 @@
 
 ## Audit scope and date
 
-**Date:** 2026-06-13  
+**Date:** 2026-06-13 (audit); Command 19 implementation 2026-06-14  
 **Source precedence:** Verified deployed behavior → Current Swagger/OpenAPI → Backend integration guide → Repository docs  
 **Status of deployed tests:** CONNECT tunnel to `https://vfr-backend.onrender.com` returns 403 Forbidden from this execution environment. All endpoint entries below are **Swagger-only** unless explicitly marked **Verified deployed**.  
 **Source documents read:** CUSTOMER_BACKEND_CONTRACT_SNAPSHOT.md, CUSTOMER_CONTINUATION_COMMANDS.md, CUSTOMER_ENDPOINT_COVERAGE.md, CUSTOMER_QA_NOTES.md, CUSTOMER_API_REFERENCE.md, catalog.api.ts, outfits.api.ts, catalog.ts types.
+
+## Command 19 implementation notes (2026-06-14)
+
+AI Outfit Suggestions endpoints are now integrated. All implementation is Swagger-derived; no deployed verification was possible.
+
+**Generate adapter (`suggestions.api.ts`):**
+- Supports documented `{ data: { suggestions: [...] } }` Swagger envelope.
+- Supports legacy `{ data: [...] }` direct-array shape for compatibility.
+- Aliases: `id` or `suggestionId` → `suggestionId`; `outfitName` or `name` → `name`.
+- `styleNotes` and `products[].reasoning` preserved from Swagger fields.
+- Model-ID resolution via `getProductsByModelIds` is conditional — called only when products have `modelId` without `productId`.
+
+**Save adapter (`suggestions.api.ts`):**
+- Strict response validation: only non-empty string from `data` or bare string accepted.
+- Invalid/missing/empty response throws `SuggestionApiError("INVALID_SAVE_RESPONSE", ...)`.
+- `INVALID_OUTFIT_ITEMS` 422 extracted and re-thrown as `SuggestionApiError`.
+- `String(raw)` not used.
+
+**Save eligibility (page/UI):**
+- Save disabled if any product has no `productId` (unresolved).
+- Save disabled if any product has no numeric `slotType`.
+- Does not filter and save a partial outfit — all-or-nothing.
+- Items built from ALL products in original array order.
+- `displayOrder` from backend used when numeric; array index used as fallback for `displayOrder` only.
+- `slotType` always comes from the backend — array index never substituted.
+
+**INVALID_OUTFIT_ITEMS (page/UI):**
+- Explicit guidance shown with link to `/customer/favorites`.
+- No automatic Favorites mutation performed.
+
+**Unconfirmed (runtime-unconfirmed):**
+- `suggestionId` source — frontend sends ID from generate response; backend may require this reference.
+- Whether Favorites prerequisite applies (INVALID_OUTFIT_ITEMS possible on save).
+- Whether any generate request field is mandatory.
 
 ---
 
