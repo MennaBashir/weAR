@@ -19,8 +19,10 @@ import {
   useRenameWardrobeCollection,
   useDeleteWardrobeCollection,
   useWardrobeCollectionItems,
+  useAddWardrobeCollectionItem,
   useRemoveWardrobeCollectionItem,
 } from "@/features/customer/queries/wardrobeCollections.queries";
+import { useCustomerFavorites } from "@/features/customer/queries/favorites.queries";
 import { WardrobeCollectionApiError } from "@/features/customer/api/wardrobeCollections.api";
 import type {
   WardrobeCollectionSummary,
@@ -438,14 +440,21 @@ function CollectionItemsPanel({ collection, onClose }: CollectionItemsPanelProps
   const [pendingRemove, setPendingRemove] = useState<WardrobeCollectionItem | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
   const [removeSuccess, setRemoveSuccess] = useState<string | null>(null);
+  const [showAddPanel, setShowAddPanel] = useState(false);
+  const [addSuccess, setAddSuccess] = useState<string | null>(null);
+  const [addItemsLoadError, setAddItemsLoadError] = useState<string | null>(null);
+  const [selectedFavoriteId, setSelectedFavoriteId] = useState<string | null>(null);
 
   const itemsQuery = useWardrobeCollectionItems(collection.id, itemPage, ITEM_PAGE_SIZE);
   const removeMutation = useRemoveWardrobeCollectionItem();
+  const addMutation = useAddWardrobeCollectionItem();
+  const favoritesQuery = useCustomerFavorites();
 
   const items = itemsQuery.data?.items ?? [];
   const itemTotalPages = itemsQuery.data?.totalPages ?? 0;
   const itemHasNext = itemsQuery.data?.hasNextPage ?? false;
   const itemHasPrev = itemsQuery.data?.hasPreviousPage ?? false;
+  const favorites = favoritesQuery.data ?? [];
 
   const handleRemoveClick = (item: WardrobeCollectionItem) => {
     setRemoveError(null);
@@ -468,6 +477,35 @@ function CollectionItemsPanel({ collection, onClose }: CollectionItemsPanelProps
     }
   };
 
+  const handleAddProduct = async () => {
+    if (!selectedFavoriteId || addMutation.isPending) return;
+    setAddSuccess(null);
+    setAddItemsLoadError(null);
+    try {
+      await addMutation.mutateAsync({
+        collectionId: collection.id,
+        payload: { productId: selectedFavoriteId },
+      });
+      setAddSuccess("Product added successfully.");
+      setSelectedFavoriteId(null);
+      setShowAddPanel(false);
+      // Items refetch is triggered by cache invalidation; if it errors separately,
+      // show the defect message (add itself succeeded)
+      void itemsQuery.refetch().catch(() => {
+        setAddItemsLoadError(
+          "The product was added, but the collection items could not be loaded.",
+        );
+      });
+    } catch (err) {
+      const message =
+        err instanceof WardrobeCollectionApiError
+          ? err.message
+          : "Failed to add product. Please try again.";
+      setAddSuccess(null);
+      setAddItemsLoadError(message);
+    }
+  };
+
   return (
     <>
       {pendingRemove && (
@@ -480,6 +518,7 @@ function CollectionItemsPanel({ collection, onClose }: CollectionItemsPanelProps
       )}
 
       <section aria-label={`Items in ${collection.name}`} className="space-y-4">
+        {/* Header */}
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#A37E6B]">
@@ -490,18 +529,108 @@ function CollectionItemsPanel({ collection, onClose }: CollectionItemsPanelProps
               <p className="mt-1 text-sm text-[#6F625B]">{collection.description}</p>
             )}
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            className="rounded-full"
-            onClick={onClose}
-            aria-label="Close collection items view"
-          >
-            <X className="mr-2 h-4 w-4" aria-hidden="true" />
-            Close
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+              onClick={() => { setShowAddPanel((v) => !v); setAddSuccess(null); setAddItemsLoadError(null); }}
+              aria-expanded={showAddPanel}
+              aria-label="Add product to collection"
+            >
+              <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
+              Add product
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-full"
+              onClick={onClose}
+              aria-label="Close collection items view"
+            >
+              <X className="mr-2 h-4 w-4" aria-hidden="true" />
+              Close
+            </Button>
+          </div>
         </div>
 
+        {/* Add product panel — sourced from Favorites */}
+        {showAddPanel && (
+          <div className={cn(customerTheme.card, "space-y-3 p-4")} aria-label="Add product from favorites">
+            <p className="text-sm font-medium text-[#2F2925]">Select a favorite product to add:</p>
+            {favoritesQuery.isLoading && (
+              <p aria-busy="true" className="text-sm text-[#6F625B]">Loading favorites…</p>
+            )}
+            {favoritesQuery.isError && (
+              <div role="alert" className="rounded-lg bg-red-50 p-3">
+                <p className="text-sm text-red-700">Could not load favorites.</p>
+                <Button type="button" variant="outline" size="sm" className="mt-2 rounded-full" onClick={() => void favoritesQuery.refetch()}>
+                  Retry
+                </Button>
+              </div>
+            )}
+            {!favoritesQuery.isLoading && !favoritesQuery.isError && favorites.length === 0 && (
+              <p className="text-sm text-[#6F625B]" role="status">No favorites yet. Add products to your favorites first.</p>
+            )}
+            {favorites.length > 0 && (
+              <div className="grid max-h-64 gap-2 overflow-y-auto sm:grid-cols-2" role="listbox" aria-label="Favorite products">
+                {favorites.map((product) => (
+                  <button
+                    key={product.id}
+                    type="button"
+                    role="option"
+                    aria-selected={selectedFavoriteId === product.id}
+                    onClick={() => setSelectedFavoriteId(product.id)}
+                    className={cn(
+                      "flex items-center gap-3 rounded-xl border p-2 text-left transition-colors",
+                      selectedFavoriteId === product.id
+                        ? "border-[#A37E6B] bg-[#F4EDE7]"
+                        : "border-[#E4DCD1] hover:border-[#A37E6B] hover:bg-[#F4EDE7]/50",
+                    )}
+                  >
+                    {(product.primaryImageUrl ?? product.imageUrl) ? (
+                      <img src={product.primaryImageUrl ?? product.imageUrl ?? ""} alt="" className="h-10 w-10 flex-shrink-0 rounded-lg object-cover" />
+                    ) : (
+                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-[#F4EDE7]">
+                        <Image className="h-5 w-5 text-[#C4A99A]" aria-hidden="true" />
+                      </div>
+                    )}
+                    <span className="min-w-0 flex-1 text-sm font-medium text-[#2F2925] line-clamp-2">{product.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {selectedFavoriteId && (
+              <Button
+                type="button"
+                className="rounded-full"
+                onClick={() => void handleAddProduct()}
+                disabled={addMutation.isPending}
+                aria-label="Confirm add selected product"
+              >
+                {addMutation.isPending ? "Adding…" : "Add to collection"}
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* Add feedback */}
+        {addSuccess && (
+          <p role="status" className="rounded-lg bg-green-50 p-3 text-sm text-green-800">
+            {addSuccess}
+          </p>
+        )}
+        {addItemsLoadError && (
+          <div role="alert" className="rounded-lg bg-amber-50 p-3">
+            <p className="text-sm text-amber-800">{addItemsLoadError}</p>
+            <Button type="button" variant="outline" size="sm" className="mt-2 rounded-full" onClick={() => void itemsQuery.refetch()}>
+              Retry
+            </Button>
+          </div>
+        )}
+
+        {/* Remove feedback */}
         {removeSuccess && (
           <p role="status" className="rounded-lg bg-green-50 p-3 text-sm text-green-800">
             {removeSuccess}
@@ -519,7 +648,7 @@ function CollectionItemsPanel({ collection, onClose }: CollectionItemsPanelProps
           </p>
         )}
 
-        {itemsQuery.isError && (
+        {itemsQuery.isError && !addItemsLoadError && (
           <div className="rounded-lg bg-red-50 p-4" role="alert">
             <p className="text-sm text-red-700">Could not load collection items.</p>
             <Button

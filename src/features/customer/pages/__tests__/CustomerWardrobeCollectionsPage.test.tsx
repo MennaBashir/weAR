@@ -26,9 +26,18 @@ const collectionHooks = vi.hoisted(() => ({
   useRemoveWardrobeCollectionItem: vi.fn(),
 }));
 
+const favoritesHooks = vi.hoisted(() => ({
+  useCustomerFavorites: vi.fn(),
+}));
+
 vi.mock(
   "@/features/customer/queries/wardrobeCollections.queries",
   () => collectionHooks,
+);
+
+vi.mock(
+  "@/features/customer/queries/favorites.queries",
+  () => favoritesHooks,
 );
 
 // ---------------------------------------------------------------------------
@@ -140,6 +149,12 @@ beforeEach(() => {
   collectionHooks.useWardrobeCollectionItems.mockReturnValue(idleItemsQuery());
   collectionHooks.useAddWardrobeCollectionItem.mockReturnValue(idleMutation());
   collectionHooks.useRemoveWardrobeCollectionItem.mockReturnValue(idleMutation());
+  favoritesHooks.useCustomerFavorites.mockReturnValue({
+    isLoading: false,
+    isError: false,
+    data: [],
+    refetch: vi.fn(),
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -745,3 +760,221 @@ describe("rename collection — runtime-verified errors", () => {
     expect(img).toHaveAttribute("src", "https://x.com/c.jpg");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Tests 63–77 — Add Product flow (using Favorites as source)
+// ---------------------------------------------------------------------------
+
+const SAMPLE_FAVORITES = [
+  { id: "prod-1", name: "Blue Denim Jacket", primaryImageUrl: "https://img/1.jpg", price: 89.99 },
+  { id: "prod-2", name: "White Sneakers", primaryImageUrl: null, imageUrl: null, price: 59.99 },
+];
+
+const COLLECTION_FOR_ADD: WardrobeCollectionsResult = {
+  items: [{ id: "col-1", name: "Summer Wardrobe", itemCount: 0, coverImageUrl: null, description: null }],
+  pageNumber: 1, pageSize: 12, totalCount: 1, totalPages: 1, hasPreviousPage: false, hasNextPage: false,
+};
+
+describe("Add Product flow", () => {
+  beforeEach(() => {
+    collectionHooks.useWardrobeCollections.mockReturnValue({
+      isLoading: false, isError: false, data: COLLECTION_FOR_ADD, refetch: vi.fn(),
+    });
+    collectionHooks.useWardrobeCollectionItems.mockReturnValue(idleItemsQuery());
+    collectionHooks.useDeleteWardrobeCollection.mockReturnValue(idleMutation());
+    collectionHooks.useCreateWardrobeCollection.mockReturnValue(idleMutation());
+    collectionHooks.useRenameWardrobeCollection.mockReturnValue(idleMutation());
+    collectionHooks.useRemoveWardrobeCollectionItem.mockReturnValue(idleMutation());
+    favoritesHooks.useCustomerFavorites.mockReturnValue({
+      isLoading: false, isError: false, data: SAMPLE_FAVORITES, refetch: vi.fn(),
+    });
+  });
+
+  it("63. Add product button is visible when a collection is selected", () => {
+    collectionHooks.useAddWardrobeCollectionItem.mockReturnValue(idleMutation());
+    renderPage();
+    fireEvent.click(screen.getByRole("article", { name: /summer wardrobe/i }));
+    expect(screen.getByRole("button", { name: /add product to collection/i })).toBeInTheDocument();
+  });
+
+  it("64. clicking Add product reveals favorites list", () => {
+    collectionHooks.useAddWardrobeCollectionItem.mockReturnValue(idleMutation());
+    renderPage();
+    fireEvent.click(screen.getByRole("article", { name: /summer wardrobe/i }));
+    fireEvent.click(screen.getByRole("button", { name: /add product to collection/i }));
+    expect(screen.getByRole("listbox", { name: /favorite products/i })).toBeInTheDocument();
+    expect(screen.getByText("Blue Denim Jacket")).toBeInTheDocument();
+    expect(screen.getByText("White Sneakers")).toBeInTheDocument();
+  });
+
+  it("65. shows loading state while favorites are loading", () => {
+    favoritesHooks.useCustomerFavorites.mockReturnValue({
+      isLoading: true, isError: false, data: undefined, refetch: vi.fn(),
+    });
+    collectionHooks.useAddWardrobeCollectionItem.mockReturnValue(idleMutation());
+    renderPage();
+    fireEvent.click(screen.getByRole("article", { name: /summer wardrobe/i }));
+    fireEvent.click(screen.getByRole("button", { name: /add product to collection/i }));
+    expect(screen.getByText(/loading favorites/i)).toBeInTheDocument();
+  });
+
+  it("66. shows error and retry when favorites fail to load", async () => {
+    favoritesHooks.useCustomerFavorites.mockReturnValue({
+      isLoading: false, isError: true, data: undefined, refetch: vi.fn(),
+    });
+    collectionHooks.useAddWardrobeCollectionItem.mockReturnValue(idleMutation());
+    renderPage();
+    fireEvent.click(screen.getByRole("article", { name: /summer wardrobe/i }));
+    fireEvent.click(screen.getByRole("button", { name: /add product to collection/i }));
+    expect(screen.getByText(/could not load favorites/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
+  });
+
+  it("67. shows empty state when favorites list is empty", () => {
+    favoritesHooks.useCustomerFavorites.mockReturnValue({
+      isLoading: false, isError: false, data: [], refetch: vi.fn(),
+    });
+    collectionHooks.useAddWardrobeCollectionItem.mockReturnValue(idleMutation());
+    renderPage();
+    fireEvent.click(screen.getByRole("article", { name: /summer wardrobe/i }));
+    fireEvent.click(screen.getByRole("button", { name: /add product to collection/i }));
+    expect(screen.getByText(/no favorites yet/i)).toBeInTheDocument();
+  });
+
+  it("68. selecting a favorite enables Add to collection button", () => {
+    collectionHooks.useAddWardrobeCollectionItem.mockReturnValue(idleMutation());
+    renderPage();
+    fireEvent.click(screen.getByRole("article", { name: /summer wardrobe/i }));
+    fireEvent.click(screen.getByRole("button", { name: /add product to collection/i }));
+    fireEvent.click(screen.getByRole("option", { name: /blue denim jacket/i }));
+    expect(screen.getByRole("button", { name: /confirm add selected product/i })).toBeInTheDocument();
+  });
+
+  it("69. submits the exact selected productId", async () => {
+    const addAsync = vi.fn().mockResolvedValueOnce(undefined);
+    collectionHooks.useAddWardrobeCollectionItem.mockReturnValue(
+      idleMutation({ mutateAsync: addAsync }),
+    );
+    collectionHooks.useWardrobeCollectionItems.mockReturnValue({
+      ...idleItemsQuery(), refetch: vi.fn().mockResolvedValue(undefined),
+    });
+
+    renderPage();
+    fireEvent.click(screen.getByRole("article", { name: /summer wardrobe/i }));
+    fireEvent.click(screen.getByRole("button", { name: /add product to collection/i }));
+    fireEvent.click(screen.getByRole("option", { name: /blue denim jacket/i }));
+    fireEvent.click(screen.getByRole("button", { name: /confirm add selected product/i }));
+
+    await waitFor(() => expect(addAsync).toHaveBeenCalled());
+    expect(addAsync).toHaveBeenCalledWith({
+      collectionId: "col-1",
+      payload: { productId: "prod-1" },
+    });
+  });
+
+  it("70. Add to collection button is disabled while pending", () => {
+    collectionHooks.useAddWardrobeCollectionItem.mockReturnValue(
+      idleMutation({ isPending: true }),
+    );
+    renderPage();
+    fireEvent.click(screen.getByRole("article", { name: /summer wardrobe/i }));
+    fireEvent.click(screen.getByRole("button", { name: /add product to collection/i }));
+    fireEvent.click(screen.getByRole("option", { name: /blue denim jacket/i }));
+    expect(screen.getByRole("button", { name: /confirm add selected product/i })).toBeDisabled();
+  });
+
+  it("71. shows 'Product added successfully.' after 204 success", async () => {
+    const addAsync = vi.fn().mockResolvedValueOnce(undefined);
+    collectionHooks.useAddWardrobeCollectionItem.mockReturnValue(
+      idleMutation({ mutateAsync: addAsync }),
+    );
+    collectionHooks.useWardrobeCollectionItems.mockReturnValue({
+      ...idleItemsQuery(), refetch: vi.fn().mockResolvedValue(undefined),
+    });
+
+    renderPage();
+    fireEvent.click(screen.getByRole("article", { name: /summer wardrobe/i }));
+    fireEvent.click(screen.getByRole("button", { name: /add product to collection/i }));
+    fireEvent.click(screen.getByRole("option", { name: /white sneakers/i }));
+    fireEvent.click(screen.getByRole("button", { name: /confirm add selected product/i }));
+
+    await waitFor(() => expect(addAsync).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(screen.getByText(/product added successfully/i)).toBeInTheDocument(),
+    );
+  });
+
+  it("72. shows post-add items-load error separately from add success", async () => {
+    const addAsync = vi.fn().mockResolvedValueOnce(undefined);
+    collectionHooks.useAddWardrobeCollectionItem.mockReturnValue(
+      idleMutation({ mutateAsync: addAsync }),
+    );
+    collectionHooks.useWardrobeCollectionItems.mockReturnValue({
+      ...idleItemsQuery(),
+      refetch: vi.fn().mockRejectedValue(new Error("500")),
+    });
+
+    renderPage();
+    fireEvent.click(screen.getByRole("article", { name: /summer wardrobe/i }));
+    fireEvent.click(screen.getByRole("button", { name: /add product to collection/i }));
+    fireEvent.click(screen.getByRole("option", { name: /blue denim jacket/i }));
+    fireEvent.click(screen.getByRole("button", { name: /confirm add selected product/i }));
+
+    await waitFor(() => expect(addAsync).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(screen.getByText(/product was added, but the collection items could not be loaded/i)).toBeInTheDocument(),
+    );
+    // Add itself is reported as success (no "failed" wording for the add)
+    expect(screen.queryByText(/failed to add product/i)).toBeNull();
+  });
+
+  it("73. does not mutate Favorites during add", async () => {
+    const addAsync = vi.fn().mockResolvedValueOnce(undefined);
+    collectionHooks.useAddWardrobeCollectionItem.mockReturnValue(
+      idleMutation({ mutateAsync: addAsync }),
+    );
+    collectionHooks.useWardrobeCollectionItems.mockReturnValue({
+      ...idleItemsQuery(), refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    const favRefetch = vi.fn();
+    favoritesHooks.useCustomerFavorites.mockReturnValue({
+      isLoading: false, isError: false, data: SAMPLE_FAVORITES, refetch: favRefetch,
+    });
+
+    renderPage();
+    fireEvent.click(screen.getByRole("article", { name: /summer wardrobe/i }));
+    fireEvent.click(screen.getByRole("button", { name: /add product to collection/i }));
+    fireEvent.click(screen.getByRole("option", { name: /blue denim jacket/i }));
+    fireEvent.click(screen.getByRole("button", { name: /confirm add selected product/i }));
+
+    await waitFor(() => expect(addAsync).toHaveBeenCalled());
+    expect(favRefetch).not.toHaveBeenCalled();
+  });
+
+  it("74. duplicate 204 returns normal success — no duplicate error shown", async () => {
+    const addAsync = vi.fn().mockResolvedValueOnce(undefined);
+    collectionHooks.useAddWardrobeCollectionItem.mockReturnValue(
+      idleMutation({ mutateAsync: addAsync }),
+    );
+    collectionHooks.useWardrobeCollectionItems.mockReturnValue({
+      ...idleItemsQuery(), refetch: vi.fn().mockResolvedValue(undefined),
+    });
+
+    renderPage();
+    fireEvent.click(screen.getByRole("article", { name: /summer wardrobe/i }));
+    fireEvent.click(screen.getByRole("button", { name: /add product to collection/i }));
+    fireEvent.click(screen.getByRole("option", { name: /blue denim jacket/i }));
+    fireEvent.click(screen.getByRole("button", { name: /confirm add selected product/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/product added successfully/i)).toBeInTheDocument(),
+    );
+    expect(screen.queryByText(/duplicate/i)).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests 78–80 — API: malformed item filtering and INVALID_ITEMS_RESPONSE
+// ---------------------------------------------------------------------------
+
+// Note: These are page-level smoke tests. Full adapter tests are in wardrobeCollections.api.test.ts

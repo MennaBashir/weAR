@@ -41,14 +41,15 @@ export class WardrobeCollectionApiError extends Error {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function normalizeCollectionItem(raw: unknown): WardrobeCollectionItem {
-  if (!isRecord(raw)) {
-    return { id: "", productId: "" };
-  }
+function normalizeCollectionItem(raw: unknown): WardrobeCollectionItem | null {
+  if (!isRecord(raw)) return null;
+  const id = typeof raw.id === "string" ? raw.id : "";
+  const productId = typeof raw.productId === "string" ? raw.productId : "";
+  if (!id || !productId) return null;
   return {
-    id: typeof raw.id === "string" ? raw.id : "",
+    id,
     collectionId: typeof raw.collectionId === "string" ? raw.collectionId : null,
-    productId: typeof raw.productId === "string" ? raw.productId : "",
+    productId,
     productName: typeof raw.productName === "string" ? raw.productName : null,
     // Swagger uses productImageUrl; normalise either field name
     primaryImageUrl:
@@ -139,7 +140,9 @@ function normalizePagedCollectionItems(payload: unknown): WardrobeCollectionItem
 
   if (isRecord(inner) && "items" in inner && Array.isArray(inner.items)) {
     return {
-      items: inner.items.map(normalizeCollectionItem),
+      items: inner.items
+        .map(normalizeCollectionItem)
+        .filter((item): item is WardrobeCollectionItem => item !== null),
       pageNumber: typeof inner.pageNumber === "number" ? inner.pageNumber : 1,
       pageSize: typeof inner.pageSize === "number" ? inner.pageSize : 10,
       totalCount: typeof inner.totalCount === "number" ? inner.totalCount : 0,
@@ -151,15 +154,10 @@ function normalizePagedCollectionItems(payload: unknown): WardrobeCollectionItem
     };
   }
 
-  return {
-    items: [],
-    pageNumber: 1,
-    pageSize: 10,
-    totalCount: 0,
-    totalPages: 0,
-    hasPreviousPage: false,
-    hasNextPage: false,
-  };
+  throw new WardrobeCollectionApiError(
+    "INVALID_ITEMS_RESPONSE",
+    "Server returned an unexpected response for collection items.",
+  );
 }
 
 function extractCreatedId(raw: unknown): string {
@@ -277,7 +275,9 @@ export const wardrobeCollectionsApi = {
 
   /**
    * GET /api/customers/{customerId}/wardrobe/collections/{collectionId}/items
-   * Swagger-only. Exact item shape unconfirmed.
+   * Runtime-verified (empty case): HTTP 200, paginated data.items envelope.
+   * After add: HTTP 500 INTERNAL_ERROR (backend read defect; add itself succeeded).
+   * Malformed items (missing id or productId) are filtered. Unknown shapes throw INVALID_ITEMS_RESPONSE.
    */
   listCollectionItems: async (
     customerId: string,
@@ -313,7 +313,8 @@ export const wardrobeCollectionsApi = {
 
   /**
    * DELETE /api/customers/{customerId}/wardrobe/collections/{collectionId}/items/{itemId}
-   * Swagger-only. 204 No Content; no body parsing.
+   * Swagger-only (Swagger-confirmed path: .../items/{itemId}, NOT .../items/products/{productId}).
+   * 204 No Content; no body parsing. Runtime-blocked (itemId unavailable due to GET items 500).
    */
   removeCollectionItem: async (
     customerId: string,

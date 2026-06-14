@@ -476,16 +476,20 @@ describe("wardrobeCollectionsApi", () => {
       expect(result.totalPages).toBe(0);
     });
 
-    it("16. returns empty result for malformed items response (graceful fallback)", async () => {
+    it("16. throws INVALID_ITEMS_RESPONSE for malformed response (not a paginated envelope)", async () => {
       mockedApiClient.get.mockResolvedValueOnce({
         data: { success: true, data: null },
       });
 
-      const result = await wardrobeCollectionsApi.listCollectionItems(
-        "c1",
-        "col-1",
-      );
-      expect(result.items).toHaveLength(0);
+      let caught: unknown;
+      try {
+        await wardrobeCollectionsApi.listCollectionItems("c1", "col-1");
+      } catch (err) {
+        caught = err;
+      }
+
+      expect(caught).toBeInstanceOf(WardrobeCollectionApiError);
+      expect((caught as WardrobeCollectionApiError).code).toBe("INVALID_ITEMS_RESPONSE");
     });
   });
 
@@ -672,3 +676,118 @@ describe("wardrobeCollectionsApi", () => {
     });
   });
 });
+
+  // ---- malformed item filtering and INVALID_ITEMS_RESPONSE ----
+
+  describe("listCollectionItems — malformed item filtering", () => {
+    it("26. filters out items with empty id", async () => {
+      mockedApiClient.get.mockResolvedValueOnce({
+        data: {
+          success: true,
+          data: {
+            items: [
+              { id: "", productId: "prod-1" },
+              { id: "item-good", productId: "prod-2" },
+            ],
+            pageNumber: 1, pageSize: 10, totalCount: 2, totalPages: 1,
+            hasPreviousPage: false, hasNextPage: false,
+          },
+        },
+      });
+
+      const result = await wardrobeCollectionsApi.listCollectionItems("c1", "col-1");
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].id).toBe("item-good");
+    });
+
+    it("27. filters out items with empty productId", async () => {
+      mockedApiClient.get.mockResolvedValueOnce({
+        data: {
+          success: true,
+          data: {
+            items: [
+              { id: "item-1", productId: "" },
+              { id: "item-2", productId: "prod-ok" },
+            ],
+            pageNumber: 1, pageSize: 10, totalCount: 2, totalPages: 1,
+            hasPreviousPage: false, hasNextPage: false,
+          },
+        },
+      });
+
+      const result = await wardrobeCollectionsApi.listCollectionItems("c1", "col-1");
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].productId).toBe("prod-ok");
+    });
+
+    it("28. preserves valid items", async () => {
+      mockedApiClient.get.mockResolvedValueOnce({
+        data: {
+          success: true,
+          data: {
+            items: [
+              { id: "item-1", productId: "prod-1", productName: "Shirt", price: 29.99 },
+            ],
+            pageNumber: 1, pageSize: 10, totalCount: 1, totalPages: 1,
+            hasPreviousPage: false, hasNextPage: false,
+          },
+        },
+      });
+
+      const result = await wardrobeCollectionsApi.listCollectionItems("c1", "col-1");
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].id).toBe("item-1");
+      expect(result.items[0].productId).toBe("prod-1");
+      expect(result.items[0].productName).toBe("Shirt");
+      expect(result.items[0].price).toBe(29.99);
+    });
+
+    it("29. throws INVALID_ITEMS_RESPONSE when data is not a paginated envelope", async () => {
+      mockedApiClient.get.mockResolvedValueOnce({
+        data: { success: true, data: null },
+      });
+
+      let caught: unknown;
+      try {
+        await wardrobeCollectionsApi.listCollectionItems("c1", "col-1");
+      } catch (err) {
+        caught = err;
+      }
+
+      expect(caught).toBeInstanceOf(WardrobeCollectionApiError);
+      expect((caught as WardrobeCollectionApiError).code).toBe("INVALID_ITEMS_RESPONSE");
+    });
+
+    it("30. throws INVALID_ITEMS_RESPONSE when data is a direct array (not items envelope)", async () => {
+      mockedApiClient.get.mockResolvedValueOnce({
+        data: { success: true, data: [{ id: "item-1", productId: "p1" }] },
+      });
+
+      let caught: unknown;
+      try {
+        await wardrobeCollectionsApi.listCollectionItems("c1", "col-1");
+      } catch (err) {
+        caught = err;
+      }
+
+      expect(caught).toBeInstanceOf(WardrobeCollectionApiError);
+      expect((caught as WardrobeCollectionApiError).code).toBe("INVALID_ITEMS_RESPONSE");
+    });
+
+    it("31. empty items array is valid (runtime-verified empty collection)", async () => {
+      mockedApiClient.get.mockResolvedValueOnce({
+        data: {
+          success: true,
+          data: {
+            items: [],
+            pageNumber: 1, pageSize: 10, totalCount: 0, totalPages: 0,
+            hasPreviousPage: false, hasNextPage: false,
+          },
+        },
+      });
+
+      const result = await wardrobeCollectionsApi.listCollectionItems("c1", "col-1");
+      expect(result.items).toHaveLength(0);
+      expect(result.totalCount).toBe(0);
+    });
+  });
