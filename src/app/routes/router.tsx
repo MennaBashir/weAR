@@ -37,6 +37,8 @@ import { CustomerSignupPage } from "@/features/customer/pages/CustomerSignupPage
 import { CustomerForgotPasswordPage } from "@/features/customer/pages/CustomerForgotPasswordPage";
 import { CustomerResetPasswordPage } from "@/features/customer/pages/CustomerResetPasswordPage";
 
+import { CustomerOnboardingPage } from "@/features/customer/pages/CustomerOnboardingPage";
+
 import { CustomerLayout } from "@/features/customer/layouts/CustomerLayout";
 import { CustomerHomePage } from "@/features/customer/pages/CustomerHomePage";
 import { CustomerShopPage } from "@/features/customer/pages/CustomerShopPage";
@@ -66,6 +68,11 @@ const router = createBrowserRouter([
   {
     path: "/",
     element: <RoleSelectionPage />,
+  },
+
+  {
+    path: "/customer/onboarding",
+    element: <CustomerOnboardingPage />,
   },
 
   {

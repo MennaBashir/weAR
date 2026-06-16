@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { getSafeActiveAvatarModelUrl, toSafeModelUrl } from "@/features/customer/try-on/utils/modelUrl";
+import {
+  getSafeActiveAvatarModelUrl,
+  toSafeModelUrl,
+  toTrustedLocalModelUrl,
+} from "@/features/customer/try-on/utils/modelUrl";
 
 describe("try-on model URL safety", () => {
   it("rejects null, empty, malformed, javascript, data and blob URLs", () => {
@@ -15,6 +19,20 @@ describe("try-on model URL safety", () => {
   it("allows valid HTTPS and HTTP URLs", () => {
     expect(toSafeModelUrl("https://cdn.example.test/result.glb")).toBe("https://cdn.example.test/result.glb");
     expect(toSafeModelUrl("http://cdn.example.test/result.glb")).toBe("http://cdn.example.test/result.glb");
+  });
+
+  it("trusts app-created blob and data URLs but still validates remote URLs", () => {
+    expect(toTrustedLocalModelUrl("blob:https://app.test/abc")).toBe(
+      "blob:https://app.test/abc",
+    );
+    expect(toTrustedLocalModelUrl("data:model/gltf-binary;base64,AAAA")).toBe(
+      "data:model/gltf-binary;base64,AAAA",
+    );
+    expect(toTrustedLocalModelUrl("https://cdn.example.test/r.glb")).toBe(
+      "https://cdn.example.test/r.glb",
+    );
+    expect(toTrustedLocalModelUrl("javascript:alert(1)")).toBeNull();
+    expect(toTrustedLocalModelUrl(null)).toBeNull();
   });
 
   it("uses the active Avatar GLB as the neutral 3D source", () => {

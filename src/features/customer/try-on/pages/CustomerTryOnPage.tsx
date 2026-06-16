@@ -11,6 +11,7 @@ import { customerTheme } from "@/features/customer/styles/customerTheme";
 import { useCartStore } from "@/features/customer/cart/useCartStore";
 import { useCreateTryOnSession } from "@/features/customer/try-on/hooks/tryOn.queries";
 import { TryOnViewerErrorBoundary } from "@/features/customer/try-on/components/TryOnViewerErrorBoundary";
+import { SamVirtualTryOn } from "@/features/customer/try-on/components/SamVirtualTryOn";
 import { TRY_ON_SESSION_TYPES, initialTryOnFlowState, tryOnFlowReducer } from "@/features/customer/try-on/types/tryOn";
 import { getSafeActiveAvatarModelUrl } from "@/features/customer/try-on/utils/modelUrl";
 import { cn } from "@/lib/utils";
@@ -48,6 +49,7 @@ export function CustomerTryOnPage() {
   const inFlight = useRef(false);
   const [stageIndex, setStageIndex] = useReducer((value: number) => (value + 1) % stagedMessages.length, 0);
   const [resultView, setResultView] = useState<ResultView>("2d");
+  const [enteredNewRoom, setEnteredNewRoom] = useState(false);
   const [viewerStatus, setViewerStatus] = useState<ViewerStatus>("idle");
   const [viewerRetryKey, setViewerRetryKey] = useState(0);
 
@@ -94,8 +96,12 @@ export function CustomerTryOnPage() {
   const select3d = () => { if (!safe3dModelUrl) return; setResultView("3d"); if (viewerStatus === "idle") setViewerStatus("loading"); };
   const retryViewer = () => { setViewerStatus("loading"); setViewerRetryKey((value) => value + 1); };
 
+  if (enteredNewRoom) {
+    return <section className="space-y-4"><Button type="button" variant="ghost" onClick={() => setEnteredNewRoom(false)} className={cn("rounded-full", customerTheme.focusRing)}><ArrowLeft className="mr-2 h-4 w-4" />Back</Button><SamVirtualTryOn /></section>;
+  }
+
   if (state.status === "entry" || state.status === "checking-avatar") {
-    return <section className="relative -m-4 flex min-h-[78vh] items-center justify-center overflow-hidden rounded-3xl bg-[#2F1D1A] p-6 text-white sm:-m-6"><div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,.20),transparent_28%),linear-gradient(90deg,#4A1518_0_18%,#7A2527_18%_28%,#3E1215_28%_40%,#8A3030_40%_58%,#3E1215_58%_70%,#7A2527_70%_82%,#4A1518_82%)]" /><Button type="button" variant="ghost" onClick={() => navigate(returnTo)} className={cn("absolute left-5 top-5 text-white hover:bg-white/10 hover:text-white", customerTheme.focusRing)}><ArrowLeft className="mr-2 h-4 w-4" />Back</Button><div className="relative z-10 max-w-xl text-center"><div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-white/15"><DoorOpen className="h-8 w-8" /></div><p className="text-sm font-semibold uppercase tracking-[0.24em] text-white/80">Private fitting room</p><h1 className="mt-3 text-4xl font-semibold sm:text-6xl">Step behind the curtain</h1><p className="mt-4 text-base text-white/85 sm:text-lg">Enter a 2D-first fitting experience using your active avatar and selected garment.</p><Button type="button" disabled={state.status === "checking-avatar" || avatar.isLoading} onClick={() => dispatch({ type: "ENTER_ROOM" })} className="mt-8 rounded-full bg-white px-8 text-[#7A2527] hover:bg-[#F4EDE7]"><Sparkles className="mr-2 h-4 w-4" />{state.status === "checking-avatar" ? "Checking avatar…" : "Enter Room"}</Button></div></section>;
+    return <section className="relative -m-4 flex min-h-[78vh] items-center justify-center overflow-hidden rounded-3xl bg-[#2F1D1A] p-6 text-white sm:-m-6"><div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,.20),transparent_28%),linear-gradient(90deg,#4A1518_0_18%,#7A2527_18%_28%,#3E1215_28%_40%,#8A3030_40%_58%,#3E1215_58%_70%,#7A2527_70%_82%,#4A1518_82%)]" /><Button type="button" variant="ghost" onClick={() => navigate(returnTo)} className={cn("absolute left-5 top-5 text-white hover:bg-white/10 hover:text-white", customerTheme.focusRing)}><ArrowLeft className="mr-2 h-4 w-4" />Back</Button><div className="relative z-10 max-w-xl text-center"><div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-white/15"><DoorOpen className="h-8 w-8" /></div><p className="text-sm font-semibold uppercase tracking-[0.24em] text-white/80">Private fitting room</p><h1 className="mt-3 text-4xl font-semibold sm:text-6xl">Step behind the curtain</h1><p className="mt-4 text-base text-white/85 sm:text-lg">Enter a 2D-first fitting experience using your active avatar and selected garment.</p><div className="mt-8 flex flex-wrap items-center justify-center gap-3"><Button type="button" disabled={state.status === "checking-avatar" || avatar.isLoading} onClick={() => dispatch({ type: "ENTER_ROOM" })} className="rounded-full bg-white px-8 text-[#7A2527] hover:bg-[#F4EDE7]"><Sparkles className="mr-2 h-4 w-4" />{state.status === "checking-avatar" ? "Checking avatar…" : "Enter Room"}</Button><Button type="button" onClick={() => setEnteredNewRoom(true)} className="rounded-full bg-[#C9A390] px-8 text-white hover:bg-[#A37E6B]"><Sparkles className="mr-2 h-4 w-4" />Enter Room New</Button></div></div></section>;
   }
 
   return <section className="space-y-6">{tryOnCartMessage && (

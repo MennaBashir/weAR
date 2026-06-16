@@ -1,20 +1,28 @@
 import "@google/model-viewer";
 import { RotateCcw } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { customerTheme } from "@/features/customer/styles/customerTheme";
 import type { SafeModelUrl } from "@/features/customer/try-on/utils/modelUrl";
 import { cn } from "@/lib/utils";
 
+interface PbrMaterial {
+  pbrMetallicRoughness?: {
+    setBaseColorFactor?: (color: [number, number, number, number]) => void;
+  };
+}
+
 type ModelViewerElement = HTMLElement & {
   cameraOrbit?: string;
   fieldOfView?: string;
   jumpCameraToGoal?: () => void;
+  model?: { materials?: PbrMaterial[] };
 };
 
 interface TryOn3DViewerProps {
   modelUrl: SafeModelUrl;
   label: string;
+  tintColor?: { r: number; g: number; b: number } | null;
   onLoading?: () => void;
   onReady?: () => void;
   onError?: () => void;
@@ -27,13 +35,40 @@ const supportsWebGl = () => {
   return Boolean(canvas.getContext("webgl") ?? canvas.getContext("experimental-webgl"));
 };
 
-export default function TryOn3DViewer({ modelUrl, label, onLoading, onReady, onError }: TryOn3DViewerProps) {
+export default function TryOn3DViewer({ modelUrl, label, tintColor, onLoading, onReady, onError }: TryOn3DViewerProps) {
   const viewerRef = useRef<ModelViewerElement | null>(null);
 
   useEffect(() => {
     onLoading?.();
     if (!supportsCustomElements() || !supportsWebGl()) onError?.();
   }, [onError, onLoading]);
+
+  const applyTint = useCallback(() => {
+    if (!tintColor) return;
+    const factor: [number, number, number, number] = [
+      tintColor.r,
+      tintColor.g,
+      tintColor.b,
+      1,
+    ];
+    let attempts = 0;
+    const tryApply = () => {
+      const materials = viewerRef.current?.model?.materials;
+      if (!materials?.length) {
+        attempts += 1;
+        if (attempts < 10) window.setTimeout(tryApply, 120);
+        return;
+      }
+      materials.forEach((material) => {
+        material.pbrMetallicRoughness?.setBaseColorFactor?.(factor);
+      });
+    };
+    tryApply();
+  }, [tintColor]);
+
+  useEffect(() => {
+    applyTint();
+  }, [applyTint, modelUrl]);
 
   const resetView = () => {
     const viewer = viewerRef.current;
@@ -63,7 +98,10 @@ export default function TryOn3DViewer({ modelUrl, label, onLoading, onReady, onE
           alt={label}
           aria-label={label}
           class="block h-[min(70vh,640px)] min-h-[360px] w-full motion-reduce:[--model-viewer-progress-mask:none]"
-          onLoad={() => onReady?.()}
+          onLoad={() => {
+            applyTint();
+            onReady?.();
+          }}
           onError={() => onError?.()}
         />
       </div>

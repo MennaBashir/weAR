@@ -39,7 +39,7 @@ const renderCompletedPage = async (modelUrl: unknown) => {
   (globalThis as { activeAvatarModelUrl?: string | null }).activeAvatarModelUrl = modelUrl as string | null;
   mutate.mockImplementation((_payload, opts) => opts.onSuccess(session));
   render(<MemoryRouter initialEntries={["/customer/try-on/p1"]}><Routes><Route path="/customer/try-on/:productId" element={<CustomerTryOnPage />} /></Routes></MemoryRouter>);
-  fireEvent.click(screen.getByRole("button", { name: /enter room/i }));
+  fireEvent.click(screen.getByRole("button", { name: /^enter room$/i }));
   await screen.findByRole("button", { name: "M" });
   fireEvent.click(screen.getByRole("button", { name: "M" }));
   fireEvent.click(screen.getByRole("button", { name: "Taupe" }));
@@ -110,7 +110,7 @@ describe("CustomerTryOnPage progressive 3D result", () => {
   it("keeps /customer/try-on without a product as a valid no-product state", async () => {
     renderTryOnPage();
 
-    fireEvent.click(screen.getByRole("button", { name: /enter room/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^enter room$/i }));
 
     expect(await screen.findByText(/No product selected/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Change Product/i })).toHaveAttribute("href", "/customer/shop");
