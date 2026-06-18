@@ -1,10 +1,22 @@
-import { Loader2, RefreshCcw, Shirt, Sparkles, Upload, User } from "lucide-react";
+import { FlaskConical, Loader2, RefreshCcw, Shirt, Sparkles, Upload, User } from "lucide-react";
 import { lazy, Suspense, useMemo, useState, type ChangeEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { customerTheme } from "@/features/customer/styles/customerTheme";
+import type { TryOnGarmentCategory } from "@/features/customer/try-on/api/samFalAi.api";
+import {
+  isTryOnDemoEnabled,
+  setTryOnDemoEnabled,
+} from "@/features/customer/try-on/demo/tryOnDemo";
 import { useSamTryOn } from "@/features/customer/try-on/hooks/samTryOn";
 import { toTrustedLocalModelUrl } from "@/features/customer/try-on/utils/modelUrl";
 import { cn } from "@/lib/utils";
+
+const GARMENT_CATEGORIES: { value: TryOnGarmentCategory; label: string }[] = [
+  { value: "auto", label: "Auto detect" },
+  { value: "tops", label: "Top" },
+  { value: "bottoms", label: "Bottom" },
+  { value: "one-pieces", label: "Full outfit / dress" },
+];
 
 const LazyTryOn3DViewer = lazy(
   () => import("@/features/customer/try-on/components/TryOn3DViewer"),
@@ -91,15 +103,26 @@ function PhotoField({ id, label, hint, icon, file, disabled, onSelect }: PhotoFi
 export function SamVirtualTryOn() {
   const [personPhoto, setPersonPhoto] = useState<File | null>(null);
   const [clothesPhoto, setClothesPhoto] = useState<File | null>(null);
-  const [clothesPrompt, setClothesPrompt] = useState("");
+  const [garmentCategory, setGarmentCategory] = useState<TryOnGarmentCategory>("auto");
   const [fieldError, setFieldError] = useState<string | null>(null);
+  const [demoEnabled, setDemoEnabled] = useState(() => isTryOnDemoEnabled());
   const sam = useSamTryOn();
 
-  const dressedModelUrl = toTrustedLocalModelUrl(sam.result.dressedModelUrl);
+  const toggleDemo = () => {
+    const next = !demoEnabled;
+    setTryOnDemoEnabled(next);
+    setDemoEnabled(next);
+    sam.reset();
+    setPersonPhoto(null);
+    setClothesPhoto(null);
+    setGarmentCategory("auto");
+    setFieldError(null);
+  };
+
   const bodyModelUrl = toTrustedLocalModelUrl(sam.result.bodyModelUrl);
-  // Show the dressed model when available, otherwise the body. We never reset
-  // the viewer to empty while a re-dress is running.
-  const activeModelUrl = dressedModelUrl ?? bodyModelUrl;
+  // The dressed result is a realistic 2D try-on image; the undressed state shows
+  // the reconstructed 3D body. We never reset the view while a re-dress runs.
+  const dressedImageUrl = sam.result.dressedImageUrl;
 
   const canGenerateBody = Boolean(personPhoto) && !sam.isBuildingBody;
   const canDress = sam.hasBody && Boolean(clothesPhoto) && !sam.isDressing;
@@ -123,7 +146,7 @@ export function SamVirtualTryOn() {
       setFieldError("Upload a clothing photo to wear.");
       return;
     }
-    void sam.dress(clothesPhoto, clothesPrompt);
+    void sam.dress(clothesPhoto, garmentCategory);
   };
 
   const isBusy = sam.isBuildingBody || sam.isDressing;
@@ -138,19 +161,44 @@ export function SamVirtualTryOn() {
       className="space-y-6 rounded-3xl border border-[#E4DCD1] bg-gradient-to-b from-[#FAF7F4] to-white p-5 sm:p-8"
       aria-label="Sam AI virtual try-on"
     >
-      <header className="space-y-2">
-        <span className="inline-flex items-center gap-2 rounded-full bg-[#F4EDE7] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#A37E6B]">
-          <Sparkles className="h-3.5 w-3.5" />
-          Sam AI Try-On
-        </span>
+      <header className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="inline-flex items-center gap-2 rounded-full bg-[#F4EDE7] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#A37E6B]">
+            <Sparkles className="h-3.5 w-3.5" />
+            Sam AI Try-On
+          </span>
+          <Button
+            type="button"
+            variant={demoEnabled ? "default" : "outline"}
+            onClick={toggleDemo}
+            className={cn(
+              "rounded-full",
+              demoEnabled && "bg-[#A37E6B] text-white hover:bg-[#8F6E5D]",
+              customerTheme.focusRing,
+            )}
+            aria-pressed={demoEnabled}
+          >
+            <FlaskConical className="mr-2 h-4 w-4" />
+            {demoEnabled ? "Demo mode: ON" : "Demo mode: OFF"}
+          </Button>
+        </div>
         <h2 className="text-2xl font-semibold text-[#2F2925] sm:text-3xl">
           Build your 3D avatar, then try clothes on it
         </h2>
         <p className="max-w-2xl text-sm text-[#6F625B]">
           Step 1: upload your photo and Sam reconstructs a 3D body rendered with your real
-          skin tone via WebGL. Step 2: upload any garment to wear it. Upload another garment
-          anytime — only the clothes are swapped, your avatar is not rebuilt.
+          skin tone via WebGL. Step 2: upload any garment and AI try-on shows you actually
+          wearing it. Upload another garment anytime to change the look.
         </p>
+        {demoEnabled ? (
+          <p className="flex items-start gap-2 rounded-2xl bg-[#FBF1E7] px-4 py-3 text-sm text-[#8F6E5D]">
+            <FlaskConical className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              Demo mode is on. Sample results are shown instantly without calling the AI
+              service or using any credits — ideal for presenting the experience.
+            </span>
+          </p>
+        ) : null}
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
@@ -231,25 +279,31 @@ export function SamVirtualTryOn() {
             />
             <div className={cn(customerTheme.softCard, "p-4")}>
               <label
-                htmlFor="sam-clothes-prompt"
+                htmlFor="sam-garment-category"
                 className="mb-1.5 block text-sm font-semibold text-[#4D433D]"
               >
-                Garment type (optional)
+                Garment type
               </label>
-              <input
-                id="sam-clothes-prompt"
-                type="text"
-                value={clothesPrompt}
-                onChange={(event) => setClothesPrompt(event.target.value)}
-                placeholder="e.g. shirt, dress, jacket"
+              <select
+                id="sam-garment-category"
+                value={garmentCategory}
+                onChange={(event) =>
+                  setGarmentCategory(event.target.value as TryOnGarmentCategory)
+                }
                 disabled={!sam.hasBody || sam.isDressing}
                 className={cn(
-                  "h-11 w-full rounded-xl border border-[#E4DCD1] bg-white px-3 text-sm text-[#2F2925] outline-none placeholder:text-[#B6A092] focus:border-[#A37E6B] disabled:opacity-60",
+                  "h-11 w-full rounded-xl border border-[#E4DCD1] bg-white px-3 text-sm text-[#2F2925] outline-none focus:border-[#A37E6B] disabled:opacity-60",
                   customerTheme.focusRing,
                 )}
-              />
+              >
+                {GARMENT_CATEGORIES.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
               <p className="mt-1 text-xs text-[#6F625B]">
-                Helps Sam segment the garment accurately.
+                Helps the try-on place the garment correctly.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -305,7 +359,7 @@ export function SamVirtualTryOn() {
                 sam.reset();
                 setPersonPhoto(null);
                 setClothesPhoto(null);
-                setClothesPrompt("");
+                setGarmentCategory("auto");
                 setFieldError(null);
               }}
               className={cn("rounded-full", customerTheme.focusRing)}
@@ -317,7 +371,19 @@ export function SamVirtualTryOn() {
         </div>
 
         <div className="relative min-h-[420px] rounded-3xl border border-[#E4DCD1] bg-[#F4EDE7] p-4">
-          {activeModelUrl ? (
+          {sam.result.isDressed && dressedImageUrl ? (
+            <div className="space-y-4">
+              <img
+                src={dressedImageUrl}
+                alt="You wearing the selected garment"
+                className="mx-auto max-h-[min(70vh,640px)] w-full rounded-3xl border border-[#E4DCD1] object-contain"
+              />
+              <p className="text-sm font-medium text-[#4D433D]">
+                Here you are wearing the garment. Upload another garment in Step 2 to
+                change it.
+              </p>
+            </div>
+          ) : bodyModelUrl ? (
             <div className="space-y-4">
               <Suspense
                 fallback={
@@ -327,19 +393,14 @@ export function SamVirtualTryOn() {
                 }
               >
                 <LazyTryOn3DViewer
-                  modelUrl={activeModelUrl}
-                  tintColor={sam.result.isDressed ? null : sam.result.skinTone}
-                  label={
-                    sam.result.isDressed
-                      ? "Your dressed 3D avatar"
-                      : "Your reconstructed 3D body"
-                  }
+                  key={bodyModelUrl}
+                  modelUrl={bodyModelUrl}
+                  tintColor={sam.result.skinTone}
+                  label="Your reconstructed 3D body"
                 />
               </Suspense>
               <p className="text-sm font-medium text-[#4D433D]">
-                {sam.result.isDressed
-                  ? "Your avatar is wearing the garment in 3D. Drag to rotate. Upload another garment to change it."
-                  : "3D body ready with your skin tone. Upload a garment in Step 2 to wear it."}
+                3D body ready with your skin tone. Upload a garment in Step 2 to wear it.
               </p>
             </div>
           ) : isBusy ? (
@@ -366,8 +427,8 @@ export function SamVirtualTryOn() {
             </div>
           )}
 
-          {/* Overlay shown while re-dressing so the current model stays visible */}
-          {sam.isDressing && activeModelUrl ? (
+          {/* Overlay shown while re-dressing so the current view stays visible */}
+          {sam.isDressing && (dressedImageUrl || bodyModelUrl) ? (
             <div className="pointer-events-none absolute inset-4 flex items-end justify-center rounded-3xl bg-gradient-to-t from-white/85 to-transparent">
               <div className="mb-6 flex items-center gap-2 rounded-full bg-white/95 px-4 py-2 text-sm font-medium text-[#4D433D] shadow">
                 <Loader2 className="h-4 w-4 animate-spin text-[#A37E6B]" />

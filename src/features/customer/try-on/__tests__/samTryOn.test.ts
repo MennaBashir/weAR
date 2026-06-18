@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useSamTryOn } from "@/features/customer/try-on/hooks/samTryOn";
 
 vi.mock("@/features/customer/try-on/api/samFalAi.api", async () => {
@@ -10,10 +10,10 @@ vi.mock("@/features/customer/try-on/api/samFalAi.api", async () => {
     ...actual,
     fileToDataUri: vi.fn(async () => "data:image/png;base64,AAAA"),
     toPersistentModelUrl: vi.fn(async (url: string | null) => url),
+    toPersistentImageUrl: vi.fn(async (url: string | null) => url),
     samFalAiApi: {
       bodyFrom3D: vi.fn(),
-      objectFrom3D: vi.fn(),
-      align: vi.fn(),
+      tryOn: vi.fn(),
     },
   };
 });
@@ -26,8 +26,7 @@ vi.mock("@/features/customer/try-on/utils/skinTone", () => ({
 import { samFalAiApi } from "@/features/customer/try-on/api/samFalAi.api";
 
 const body = vi.mocked(samFalAiApi.bodyFrom3D);
-const object = vi.mocked(samFalAiApi.objectFrom3D);
-const align = vi.mocked(samFalAiApi.align);
+const tryOn = vi.mocked(samFalAiApi.tryOn);
 
 const personFile = new File(["p"], "person.png", { type: "image/png" });
 const shirtFile = new File(["s"], "shirt.png", { type: "image/png" });
@@ -41,8 +40,7 @@ const bodyResult = {
 
 beforeEach(() => {
   body.mockReset();
-  object.mockReset();
-  align.mockReset();
+  tryOn.mockReset();
 });
 
 describe("useSamTryOn separated flow", () => {
@@ -62,33 +60,14 @@ describe("useSamTryOn separated flow", () => {
     expect(result.current.result.bodyMeshUrl).toBe("https://fal/body-mesh.ply");
     expect(result.current.result.skinTone).toEqual({ r: 0.8, g: 0.6, b: 0.5 });
     expect(result.current.result.isDressed).toBe(false);
-    expect(object).not.toHaveBeenCalled();
+    expect(tryOn).not.toHaveBeenCalled();
   });
 
-  it("dresses the existing body and re-dresses without rebuilding it", async () => {
+  it("dresses the person via try-on and re-dresses without rebuilding the body", async () => {
     body.mockResolvedValue(bodyResult);
-    object
-      .mockResolvedValueOnce({
-        gaussian_splat: { url: "https://fal/shirt.ply" },
-        model_glb: { url: "https://fal/shirt.glb" },
-      })
-      .mockResolvedValueOnce({
-        gaussian_splat: { url: "https://fal/jacket.ply" },
-        model_glb: { url: "https://fal/jacket.glb" },
-      });
-    align
-      .mockResolvedValueOnce({
-        body_mesh_ply: { url: "https://fal/a1.ply" },
-        model_glb: { url: "https://fal/a1.glb" },
-        visualization: { url: "https://fal/a1-viz.png" },
-        scene_glb: { url: "https://fal/scene-shirt.glb" },
-      })
-      .mockResolvedValueOnce({
-        body_mesh_ply: { url: "https://fal/a2.ply" },
-        model_glb: { url: "https://fal/a2.glb" },
-        visualization: { url: "https://fal/a2-viz.png" },
-        scene_glb: { url: "https://fal/scene-jacket.glb" },
-      });
+    tryOn
+      .mockResolvedValueOnce({ images: [{ url: "https://fal/tryon-shirt.png" }] })
+      .mockResolvedValueOnce({ images: [{ url: "https://fal/tryon-jacket.png" }] });
 
     const { result } = renderHook(() => useSamTryOn());
 
@@ -98,29 +77,30 @@ describe("useSamTryOn separated flow", () => {
     await waitFor(() => expect(result.current.hasBody).toBe(true));
 
     await act(async () => {
-      await result.current.dress(shirtFile, "shirt");
+      await result.current.dress(shirtFile, "tops");
     });
     await waitFor(() => expect(result.current.dressStage).toBe("completed"));
 
-    expect(result.current.result.dressedModelUrl).toBe("https://fal/scene-shirt.glb");
+    expect(result.current.result.dressedImageUrl).toBe("https://fal/tryon-shirt.png");
     expect(result.current.result.isDressed).toBe(true);
 
     // Re-dress with a different garment.
     await act(async () => {
-      await result.current.dress(jacketFile, "jacket");
+      await result.current.dress(jacketFile, "tops");
     });
     await waitFor(() =>
-      expect(result.current.result.dressedModelUrl).toBe("https://fal/scene-jacket.glb"),
+      expect(result.current.result.dressedImageUrl).toBe("https://fal/tryon-jacket.png"),
     );
 
-    // Body was built only once; align reused the same body mesh.
+    // Body was built only once; try-on reused the same person photo.
     expect(body).toHaveBeenCalledTimes(1);
-    expect(align).toHaveBeenCalledTimes(2);
-    expect(align).toHaveBeenNthCalledWith(
+    expect(tryOn).toHaveBeenCalledTimes(2);
+    expect(tryOn).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
-        bodyMeshUrl: "https://fal/body-mesh.ply",
-        objectMeshUrl: "https://fal/jacket.glb",
+        modelImage: "data:image/png;base64,AAAA",
+        garmentImage: "data:image/png;base64,AAAA",
+        category: "tops",
       }),
       expect.anything(),
     );
@@ -130,17 +110,17 @@ describe("useSamTryOn separated flow", () => {
     const { result } = renderHook(() => useSamTryOn());
 
     await act(async () => {
-      await result.current.dress(shirtFile, "shirt");
+      await result.current.dress(shirtFile, "tops");
     });
 
     expect(result.current.dressStage).toBe("error");
-    expect(object).not.toHaveBeenCalled();
+    expect(tryOn).not.toHaveBeenCalled();
     expect(result.current.dressError).toMatch(/body first/i);
   });
 
-  it("errors when the garment mesh cannot be built", async () => {
+  it("errors when the try-on returns no dressed image", async () => {
     body.mockResolvedValue(bodyResult);
-    object.mockResolvedValue({ gaussian_splat: { url: "https://fal/g.ply" } });
+    tryOn.mockResolvedValue({ images: [] });
 
     const { result } = renderHook(() => useSamTryOn());
 
@@ -150,40 +130,45 @@ describe("useSamTryOn separated flow", () => {
     await waitFor(() => expect(result.current.hasBody).toBe(true));
 
     await act(async () => {
-      await result.current.dress(shirtFile, "shirt");
-    });
-
-    await waitFor(() => expect(result.current.dressStage).toBe("error"));
-    expect(align).not.toHaveBeenCalled();
-    expect(result.current.dressError).toMatch(/3D garment/i);
-  });
-
-  it("errors when align returns no combined scene (garment not merged)", async () => {
-    body.mockResolvedValue(bodyResult);
-    object.mockResolvedValue({
-      gaussian_splat: { url: "https://fal/shirt.ply" },
-      model_glb: { url: "https://fal/shirt.glb" },
-    });
-    align.mockResolvedValue({
-      body_mesh_ply: { url: "https://fal/a.ply" },
-      model_glb: { url: "https://fal/a-body.glb" },
-      visualization: { url: "https://fal/a-viz.png" },
-      // no scene_glb -> garment did not merge
-    });
-
-    const { result } = renderHook(() => useSamTryOn());
-
-    await act(async () => {
-      await result.current.generateBody(personFile);
-    });
-    await waitFor(() => expect(result.current.hasBody).toBe(true));
-
-    await act(async () => {
-      await result.current.dress(shirtFile, "shirt");
+      await result.current.dress(shirtFile, "tops");
     });
 
     await waitFor(() => expect(result.current.dressStage).toBe("error"));
     expect(result.current.result.isDressed).toBe(false);
-    expect(result.current.dressError).toMatch(/merge the garment/i);
+    expect(result.current.dressError).toMatch(/dressed image/i);
+  });
+});
+
+describe("useSamTryOn demo mode", () => {
+  beforeEach(() => {
+    body.mockReset();
+    tryOn.mockReset();
+    localStorage.setItem("wear:tryon-demo", "1");
+  });
+
+  afterEach(() => {
+    localStorage.removeItem("wear:tryon-demo");
+  });
+
+  it("builds body and dresses from bundled assets without calling FAL", async () => {
+    const { result } = renderHook(() => useSamTryOn());
+    expect(result.current.isDemo).toBe(true);
+
+    await act(async () => {
+      await result.current.generateBody(personFile);
+    });
+    await waitFor(() => expect(result.current.hasBody).toBe(true));
+
+    expect(result.current.result.bodyModelUrl).toBe("/demo/body.glb");
+    expect(body).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await result.current.dress(shirtFile, "tops");
+    });
+    await waitFor(() => expect(result.current.dressStage).toBe("completed"));
+
+    expect(result.current.result.dressedImageUrl).toBe("/demo/dressed.png");
+    expect(result.current.result.isDressed).toBe(true);
+    expect(tryOn).not.toHaveBeenCalled();
   });
 });

@@ -7,7 +7,9 @@ import type { SafeModelUrl } from "@/features/customer/try-on/utils/modelUrl";
 import { cn } from "@/lib/utils";
 
 interface PbrMaterial {
+  name?: string;
   pbrMetallicRoughness?: {
+    baseColorTexture?: { texture?: unknown } | null;
     setBaseColorFactor?: (color: [number, number, number, number]) => void;
   };
 }
@@ -32,7 +34,13 @@ const supportsCustomElements = () => typeof window !== "undefined" && "customEle
 const supportsWebGl = () => {
   if (typeof document === "undefined") return false;
   const canvas = document.createElement("canvas");
-  return Boolean(canvas.getContext("webgl") ?? canvas.getContext("experimental-webgl"));
+  const gl = (canvas.getContext("webgl") ??
+    canvas.getContext("experimental-webgl")) as WebGLRenderingContext | null;
+  if (!gl) return false;
+  // Release the probe context immediately so it does not count against the
+  // browser's small per-page WebGL context budget (model-viewer needs its own).
+  gl.getExtension("WEBGL_lose_context")?.loseContext();
+  return true;
 };
 
 export default function TryOn3DViewer({ modelUrl, label, tintColor, onLoading, onReady, onError }: TryOn3DViewerProps) {
@@ -60,6 +68,10 @@ export default function TryOn3DViewer({ modelUrl, label, tintColor, onLoading, o
         return;
       }
       materials.forEach((material) => {
+        // Only tint untextured body materials. Garment materials in the dressed
+        // scene carry their own base-color texture and must keep it, so the
+        // body gets real skin tone while clothes stay accurate.
+        if (material.pbrMetallicRoughness?.baseColorTexture?.texture) return;
         material.pbrMetallicRoughness?.setBaseColorFactor?.(factor);
       });
     };

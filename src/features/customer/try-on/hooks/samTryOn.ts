@@ -3,31 +3,41 @@ import {
   falFileUrl,
   fileToDataUri,
   samFalAiApi,
+  toPersistentImageUrl,
   toPersistentModelUrl,
-  type SamAlignResult,
+  type FashnTryOnResult,
   type SamBodyResult,
-  type SamObjectResult,
+  type TryOnGarmentCategory,
 } from "@/features/customer/try-on/api/samFalAi.api";
 import {
   extractSkinToneFromImage,
   type RgbColor,
 } from "@/features/customer/try-on/utils/skinTone";
+import {
+  DEMO_ASSETS,
+  DEMO_BODY_DELAY_MS,
+  DEMO_DRESS_DELAY_MS,
+  isTryOnDemoEnabled,
+} from "@/features/customer/try-on/demo/tryOnDemo";
+
+const wait = (ms: number, signal?: AbortSignal): Promise<void> =>
+  new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener("abort", () => {
+      clearTimeout(timer);
+      reject(new DOMException("Aborted", "AbortError"));
+    });
+  });
 
 export type SamBodyStage = "idle" | "uploading" | "building-body" | "ready" | "error";
-export type SamDressStage =
-  | "idle"
-  | "building-object"
-  | "aligning"
-  | "completed"
-  | "error";
+export type SamDressStage = "idle" | "dressing" | "completed" | "error";
 
 export interface SamTryOnResult {
   bodyModelUrl: string | null;
   bodyMeshUrl: string | null;
   bodyVisualizationUrl: string | null;
-  objectModelUrl: string | null;
-  dressedModelUrl: string | null;
-  dressedVisualizationUrl: string | null;
+  // The realistic 2D image of the person actually wearing the garment (FASHN).
+  dressedImageUrl: string | null;
   isDressed: boolean;
   skinTone: RgbColor | null;
 }
@@ -42,9 +52,8 @@ const BODY_STAGE_LABELS: Record<SamBodyStage, string> = {
 
 const DRESS_STAGE_LABELS: Record<SamDressStage, string> = {
   idle: "",
-  "building-object": "Converting the garment into a 3D object with Sam",
-  aligning: "Dressing your 3D avatar with Sam",
-  completed: "Your dressed 3D avatar is ready",
+  dressing: "Dressing you in the garment with AI try-on",
+  completed: "Your try-on result is ready",
   error: "Dressing failed",
 };
 
@@ -52,9 +61,7 @@ const emptyResult: SamTryOnResult = {
   bodyModelUrl: null,
   bodyMeshUrl: null,
   bodyVisualizationUrl: null,
-  objectModelUrl: null,
-  dressedModelUrl: null,
-  dressedVisualizationUrl: null,
+  dressedImageUrl: null,
   isDressed: false,
   skinTone: null,
 };
@@ -62,8 +69,8 @@ const emptyResult: SamTryOnResult = {
 const bodyMeshUrlFrom = (body: SamBodyResult): string | null =>
   falFileUrl(body.meshes?.[0]) ?? falFileUrl(body.model_glb);
 
-const objectMeshUrlFrom = (object: SamObjectResult): string | null =>
-  falFileUrl(object.model_glb) ?? falFileUrl(object.individual_glbs?.[0]);
+const dressedImageUrlFrom = (tryon: FashnTryOnResult): string | null =>
+  falFileUrl(tryon.images?.[0]);
 
 export function useSamTryOn() {
   const [bodyStage, setBodyStage] = useState<SamBodyStage>("idle");
@@ -140,6 +147,21 @@ export function useSamTryOn() {
         setResult((prev) => ({ ...prev, skinTone }));
 
         setBodyStage("building-body");
+
+        // Demo/mock mode: return a bundled sample 3D body, no FAL call/credits.
+        if (isTryOnDemoEnabled()) {
+          await wait(DEMO_BODY_DELAY_MS, signal);
+          bodyMeshUrlRef.current = DEMO_ASSETS.bodyModelUrl;
+          setResult((prev) => ({
+            ...prev,
+            bodyModelUrl: DEMO_ASSETS.bodyModelUrl,
+            bodyMeshUrl: DEMO_ASSETS.bodyModelUrl,
+            bodyVisualizationUrl: null,
+          }));
+          setBodyStage("ready");
+          return;
+        }
+
         const body = await samFalAiApi.bodyFrom3D(personUri, { signal });
         const bodyMeshUrl = bodyMeshUrlFrom(body);
 
@@ -189,12 +211,14 @@ export function useSamTryOn() {
     [cancelBody, cancelDress],
   );
 
-  // Step 2: dress (or re-dress) the existing body without rebuilding it.
+  // Step 2: dress (or re-dress) the person using real virtual try-on (FASHN).
+  // This puts the garment ONTO the person photo and returns a realistic image —
+  // unlike SAM-3 3d-align, which only composes body+object in a shared scene and
+  // never fits clothing onto the body.
   const dress = useCallback(
-    async (clothesPhoto: File, clothesPrompt?: string) => {
+    async (clothesPhoto: File, category?: TryOnGarmentCategory) => {
       const personUri = personUriRef.current;
-      const bodyMeshUrl = bodyMeshUrlRef.current;
-      if (!personUri || !bodyMeshUrl) {
+      if (!personUri) {
         setDressError("Generate your 3D body first, then upload a garment to wear.");
         setDressStage("error");
         return;
@@ -208,55 +232,46 @@ export function useSamTryOn() {
       setDressError(null);
 
       try {
-        const clothesUri = await fileToDataUri(clothesPhoto);
+        setDressStage("dressing");
 
-        setDressStage("building-object");
-        const object = await samFalAiApi.objectFrom3D(
-          clothesUri,
-          clothesPrompt?.trim() || "clothing",
+        // Demo/mock mode: return a bundled sample dressed image, no FAL call.
+        if (isTryOnDemoEnabled()) {
+          await wait(DEMO_DRESS_DELAY_MS, signal);
+          setResult((prev) => ({
+            ...prev,
+            dressedImageUrl: DEMO_ASSETS.dressedImageUrl,
+            isDressed: true,
+          }));
+          setDressStage("completed");
+          return;
+        }
+
+        const garmentUri = await fileToDataUri(clothesPhoto);
+
+        const tryon = await samFalAiApi.tryOn(
+          { modelImage: personUri, garmentImage: garmentUri, category },
           { signal },
         );
         if (import.meta.env.DEV) {
-          console.debug("[Sam] 3d-objects response", object);
+          console.debug("[Sam] try-on response", tryon);
         }
-        const objectModelUrl = objectMeshUrlFrom(object);
-        if (!objectModelUrl) {
+
+        const remoteImageUrl = dressedImageUrlFrom(tryon);
+        if (!remoteImageUrl) {
           throw new Error(
-            "Sam could not build a 3D garment from the clothing photo (no GLB mesh returned). Try a clearer, front-facing garment photo and set the garment type.",
+            "The try-on model did not return a dressed image. Try a clearer, front-facing garment photo.",
           );
         }
 
-        setDressStage("aligning");
-        const aligned: SamAlignResult = await samFalAiApi.align(
-          { imageUrl: personUri, bodyMeshUrl, objectMeshUrl: objectModelUrl },
-          { signal },
-        );
-        if (import.meta.env.DEV) {
-          console.debug("[Sam] 3d-align response", aligned);
-        }
+        // Persist the result image as a blob so it never re-fetches an expired
+        // FAL/CDN URL and is never re-billed during the session.
+        const dressedImageUrl =
+          trackBlob(await toPersistentImageUrl(remoteImageUrl, signal)) ??
+          remoteImageUrl;
 
-        // The merged body+garment model is `scene_glb`. It is ONLY returned when
-        // a valid object mesh was provided. If it is missing, the garment did not
-        // merge — surface that instead of silently showing the undressed body.
-        const sceneUrl = falFileUrl(aligned.scene_glb);
-        if (!sceneUrl) {
-          throw new Error(
-            "Sam aligned your body but could not merge the garment onto it (no combined scene returned). Try a clearer garment photo or a different angle.",
-          );
-        }
-
-        // Persist the merged scene GLB as a blob so it never re-fetches an
-        // expired FAL URL (the red error state) — and is never re-billed.
-        const dressedModelUrl = trackBlob(
-          await toPersistentModelUrl(sceneUrl, signal),
-        );
-
-        // Swap to the new dressed model only once it is ready.
         setResult((prev) => ({
           ...prev,
-          objectModelUrl,
-          dressedModelUrl,
-          dressedVisualizationUrl: falFileUrl(aligned.visualization),
+          dressedImageUrl,
           isDressed: true,
         }));
         setDressStage("completed");
@@ -269,7 +284,7 @@ export function useSamTryOn() {
         setDressError(
           error instanceof Error
             ? error.message
-            : "Sam dressing failed. Please retry.",
+            : "Virtual try-on failed. Please retry.",
         );
       } finally {
         dressAbortRef.current = null;
@@ -279,7 +294,7 @@ export function useSamTryOn() {
   );
 
   const isBuildingBody = bodyStage === "uploading" || bodyStage === "building-body";
-  const isDressing = dressStage === "building-object" || dressStage === "aligning";
+  const isDressing = dressStage === "dressing";
 
   return {
     bodyStage,
@@ -292,6 +307,7 @@ export function useSamTryOn() {
     hasBody: bodyStage === "ready",
     isBuildingBody,
     isDressing,
+    isDemo: isTryOnDemoEnabled(),
     generateBody,
     dress,
     reset,
